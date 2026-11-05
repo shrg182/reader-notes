@@ -34,6 +34,16 @@ the initial check returned HTTP 404. `.github/workflows/pages.yml` adds unit
 checks and a Pages deployment containing public app assets only. Repository
 Pages must use the GitHub Actions source. Verify live deployment separately.
 
+## Sheets-style interface
+
+The user requested Sheets styling. `styles.css` and the shared HTML header now
+follow the existing Studio's worksheet theme: green document mark, compact
+sans-serif chrome, pale toolbars, column-based library rows, metadata cells and
+bordered editor/reference panels. Article text retains a book-like serif face.
+Phone layouts stack library fields and keep 44px touch controls. Existing browser
+regressions passed after the change; desktop and mobile screenshots were
+visually inspected. Saving, accounts and storage formats are unchanged.
+
 ## Verification performed
 
 - `npm test`: 5 tests passed.

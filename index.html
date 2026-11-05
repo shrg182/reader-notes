@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#244b43">
+  <meta name="theme-color" content="#188038">
   <title>Reader Notes · 阅读札记</title>
   <link rel="stylesheet" href="styles.css">
   <script src="config.js"></script>
@@ -11,13 +11,13 @@
 </head>
 <body>
   <header class="topbar">
-    <a href="#library" class="brand">Reader Notes · 阅读札记 <small>Your personal reading and editing workspace.</small></a>
+    <a href="#library" class="brand"><span class="sheet-mark" aria-hidden="true"><span></span></span><span>Reader Notes · 阅读札记 <small>Your personal reading and editing workspace.</small></span></a>
     <button id="account-button">Account</button>
   </header>
   <main>
     <div id="notice" role="status" aria-live="polite"></div>
     <section id="library-view">
-      <div class="heading"><div><p class="eyebrow">YOUR READING ROOM</p><h1>Library</h1><p id="identity">Local library · this browser</p></div>
+      <div class="heading"><div><p class="eyebrow">READER NOTES</p><h1>Library</h1><p id="identity">Local library · this browser</p></div>
         <button id="new-book" class="primary">+ New article</button></div>
       <div class="library-tools">
         <label class="search">Search library<input id="search" type="search" placeholder="Title, text or notes"></label>
@@ -27,7 +27,7 @@
         <button id="sync-library">Sync now</button>
         <label class="trash-toggle"><input id="show-trash" type="checkbox"> Show trash</label>
       </div>
-      <div id="books" class="books"></div>
+      <div class="library-sheet"><div class="sheet-columns" aria-hidden="true"><span>Article</span><span>Language</span><span>Save status</span><span>Actions</span></div><div id="books" class="books"></div></div>
       <p class="muted">Local mode is shared by people using this browser profile. Export a backup to keep an independent copy.</p>
     </section>
     <section id="workspace-view" hidden>

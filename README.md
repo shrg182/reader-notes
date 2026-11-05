@@ -2,6 +2,10 @@
 
 Your personal reading and editing workspace.
 
+The interface uses a Sheets-inspired worksheet style: compact green-accented
+header, pale toolbars, a column-based library, and bordered editing panels. Phone
+layouts keep readable text and touch-sized controls.
+
 Repository: <https://github.com/shrg182/reader-notes>
 
 Website: <https://shrg182.github.io/reader-notes/>
