@@ -162,6 +162,10 @@ when their underlying document capabilities are ready.
 
 ### 3 — Migration
 
+Preview 0.3 now provides the inventory/preview workbench and device-retained
+original archives, plus small explicitly acknowledged plain-text trials. See
+`MIGRATION.md`. This does not complete the full-fidelity stage below.
+
 - Inventory legacy formats: news, classical text editors, PDF notes, vocabulary,
   histories, workspace preferences and private writing.
 - Build version-specific adapters. Preview destination, counts, duplicates,

@@ -253,3 +253,34 @@ select { font: inherit; color: #202124; border: 1px solid var(--border); border-
 }
 /* An expanded block gets a full-width row, keeping collapsed headers compact. */
 .tool-block:has(.block-body:not([hidden])) { flex-basis: 100%; }
+
+/* Reader Studio migration workbench. Source markup is never rendered. */
+#migration-dialog { width: min(1040px, calc(100% - 24px)); }
+#migration-dialog h3 { font-size: 16px; font-weight: 500; margin-top: 22px; }
+#migration-dialog details { margin: 10px 0; padding: 8px 0; border-top: 1px solid var(--border); }
+#migration-dialog summary { font-size: 13px; cursor: pointer; overflow-wrap: anywhere; }
+#migration-status { padding: 10px; background: var(--green-soft); color: #137333; font-size: 13px; }
+#migration-status:empty { display: none; }
+#migration-files { font-size: 13px; }
+.migration-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.migration-summary > div { padding: 12px; border: 1px solid var(--border); background: #f8f9fa; }
+.migration-summary strong { display: block; font-size: 22px; font-weight: 500; }
+.migration-summary span { font-size: 12px; color: var(--muted); }
+.file-fingerprint { font: 11px/1.6 monospace; overflow-wrap: anywhere; }
+.migration-warning { background: #fef7e0; color: #694f09; padding: 12px; border-left: 3px solid #f9ab00; font-size: 13px; }
+.migration-record { border-bottom: 1px solid var(--border); padding: 12px 0; }
+.migration-record-heading { display: flex; align-items: start; gap: 8px; font-size: 14px; overflow-wrap: anywhere; }
+.migration-record-heading input { width: auto; margin: 3px 0 0; accent-color: var(--green); }
+.migration-record p { margin: 5px 0; }
+.migration-key { font: 11px/1.6 monospace; color: var(--muted); overflow-wrap: anywhere; }
+.migration-check { display: flex; gap: 8px; align-items: start; }
+.migration-check input { width: auto; margin: 3px 0 0; }
+.migration-source-download { margin-top: 8px; }
+.migration-source-download button { max-width: 100%; overflow-wrap: anywhere; text-align: left; }
+@media (max-width:760px) {
+  #migration-dialog { padding: 16px; }
+  .migration-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #migration-dialog .actions { align-items: stretch; }
+  #migration-dialog .actions button { flex: 1 1 160px; }
+  .migration-check input, .migration-record-heading input { min-width: 20px; height: 20px; }
+}

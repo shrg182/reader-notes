@@ -3,6 +3,7 @@ import * as db from './storage.js';
 import {Cloud} from './cloud.js';
 import {ReaderTools} from './toolbar.js';
 import {validateStudy} from './toolbar-model.js';
+import {StudioMigration} from './migration-ui.js';
 
 const $=id=>document.getElementById(id);
 const cloud=new Cloud(window.READER_CONFIG);
@@ -11,6 +12,7 @@ let accountLock=null, ready=false;
 const notify=(message,error=false)=>{ $('notice').textContent=message;$('notice').classList.toggle('error',error); };
 const status=message=>{$('save-status').textContent=message;};
 const tools=new ReaderTools({context:()=>({scope,book:current(),books,hasPdf:Boolean(pdfUrl)}),run,notify,openSource:openBook});
+new StudioMigration({run,notify,context:()=>({scope,books,label:cloud.session?`private library (${cloud.session.user.email})`:'local library on this browser'}),onImported:async()=>{books=await db.listBooks(scope);render();}});
 function node(tag,text,className){const n=document.createElement(tag);n.textContent=text;if(className)n.className=className;return n;}
 function button(text,fn){const b=node('button',text);b.onclick=()=>run(fn);return b;}
 function download(name,data,type='application/json'){

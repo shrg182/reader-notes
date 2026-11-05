@@ -3,13 +3,14 @@ export async function openStore() {
   if (database) return database;
   database = await new Promise((resolve,reject)=>{
     // Preserve the preview database name so the Reader Notes rename keeps drafts.
-    const req=indexedDB.open('reader-studio-v1',1);
+    let blocked=false;
+    const req=indexedDB.open('reader-studio-v1',2);
     req.onupgradeneeded=()=>{
-      req.result.createObjectStore('books',{keyPath:'key'});
-      req.result.createObjectStore('assets',{keyPath:'key'});
-      req.result.createObjectStore('settings');
+      for(const name of ['books','assets','migration_files','migration_batches'])if(!req.result.objectStoreNames.contains(name))req.result.createObjectStore(name,{keyPath:'key'});
+      if(!req.result.objectStoreNames.contains('settings'))req.result.createObjectStore('settings');
     };
-    req.onsuccess=()=>resolve(req.result);
+    req.onblocked=()=>{blocked=true;reject(new Error('Close other Reader Notes tabs, then reload to finish the storage upgrade. Existing data is preserved.'));};
+    req.onsuccess=()=>{if(blocked){req.result.close();return;}req.result.onversionchange=()=>{req.result.close();database=undefined;};resolve(req.result);};
     req.onerror=()=>reject(req.error);
   });
   return database;
@@ -46,13 +47,26 @@ export async function putBooks(scope,books,study) {
 export const getAsset=(scope,id)=>transaction('assets','readonly',s=>s.get(`${scope}:${id}`));
 export const putAsset=(scope,id,file)=>transaction('assets','readwrite',s=>s.put({key:`${scope}:${id}`,file}));
 export const deleteAsset=(scope,id)=>transaction('assets','readwrite',s=>s.delete(`${scope}:${id}`));
+export async function listMigrationBatches(scope){return (await transaction('migration_batches','readonly',s=>s.getAll())).filter(batch=>batch.scope===scope);}
+export const getMigrationFile=(scope,hash)=>transaction('migration_files','readonly',s=>s.get(`${scope}:${hash}`));
+export async function commitMigration(scope,batch,sources,books=[]){
+  const db=await openStore();
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction(['books','migration_files','migration_batches'],'readwrite');
+    // add(), not put(): a stale preview can never replace an existing article.
+    for(const book of books)tx.objectStore('books').add({...book,key:`${scope}:${book.id}`,scope});
+    for(const source of sources)tx.objectStore('migration_files').put({key:`${scope}:${source.hash}`,scope,hash:source.hash,name:source.name,file:source.file});
+    tx.objectStore('migration_batches').put({...batch,key:`${scope}:${batch.id}`,scope});
+    tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||new Error('Migration transaction was cancelled.'));
+  });
+}
 export async function clearAccount(scope) {
   const db=await openStore();
   return new Promise((resolve,reject)=>{
-    const tx=db.transaction(['books','assets','settings'],'readwrite');
+    const tx=db.transaction(['books','assets','settings','migration_files','migration_batches'],'readwrite');
     tx.objectStore('settings').delete(`vocabulary:${scope}`);
     for(const device of ['phone','desktop'])tx.objectStore('settings').delete(`tools:${scope}:${device}`);
-    for(const name of ['books','assets']) {
+    for(const name of ['books','assets','migration_files','migration_batches']) {
       const request=tx.objectStore(name).openCursor();
       request.onsuccess=()=>{const c=request.result;if(c){if(c.key.startsWith(`${scope}:`))c.delete();c.continue();}};
     }

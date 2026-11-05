@@ -46,6 +46,19 @@ Repository: <https://github.com/shrg182/reader-notes>
 
 Website: <https://shrg182.github.io/reader-notes/>
 
+## Reader Studio migration
+
+Use **Import from Reader Studio** for a read-only inventory, record preview,
+downloadable report, exact original-file retention and small plain-text trials.
+It recognizes full editing archives, verified portable packages, article backups,
+dictionary exports and optional catalogs. Existing editions are never replaced.
+Rich annotation/dictionary conversion and bulk migration remain pending.
+See [MIGRATION.md](MIGRATION.md) for source preparation, limits and safeguards.
+
+Device archives are separate from ordinary JSON backups and cloud sync. Keep
+your original exports outside the browser. Database version 2 adds migration
+stores without deleting existing books; close older tabs if an upgrade is blocked.
+
 GitHub Pages deployment is defined in `.github/workflows/pages.yml`. Set the
 repository's **Settings → Pages → Source** to **GitHub Actions**. Pushes to
 `main` run unit checks and publish only the app's public assets; project notes,

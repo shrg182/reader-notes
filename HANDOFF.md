@@ -91,6 +91,48 @@ capture, vocabulary backup round-trip, hidden blocks, persisted pin/visibility,
 reading mode, PDF capability switching, and phone layout selection. Unit suite
 expanded to 8 tests including inheritance and vocabulary validation.
 
+## Reader Studio migration workbench — preview 0.3
+
+The user approved proceeding with migration inventory/preview. Added
+`migration-model.js` and `migration-ui.js`, the library's **Import from Reader
+Studio** button and `MIGRATION.md`. Source adapters handle full archives,
+fingerprint-verified portable packages, reader-article-v1 backups, optional
+catalogs, dictionary CSV/JS datasets and corrections, plus source-file staging.
+Raw HTML/JS is never executed. Reports omit raw storage values.
+
+The workbench offers read-only inspection, paginated previews, original/report
+downloads, and explicitly acknowledged trials of up to 10 plain-text copies.
+Unsupported rich data stays in original files; this is not a full-fidelity bulk
+migration. Stable source IDs, legacy chapter-version grouping and destination
+checks prevent duplicate/replacement imports. Trial writes and original-file
+staging are atomic, with add-only book inserts for stale-preview protection.
+
+IndexedDB version 2 adds `migration_files` and `migration_batches`; existing
+stores survive. Version-change/blocked handling requests closing older tabs.
+Staged originals are device/account-scoped caches, excluded from standard JSON
+backups/cloud sync and cleared on account sign-out. Selected input files are
+untouched; preserve them outside the browser.
+
+Unit suite: 18 tests passed. Read-only inspection of the existing October 31
+archive plus catalog/dictionary files detected 375 archive records, 101 supported
+article versions / 80 identities, 2,726 dictionary entries, 3,870 occurrences and
+11 corrections; no format errors. 34 versions require a source-version choice.
+This inspection did not stage or import actual user data and did not copy source
+archives into this repo. Browser fixtures cover old-database upgrade, unchanged
+preview/staging, source-byte recovery, trial acknowledgement, repeat/conflicting
+imports and atomic rollback, alongside previous reading/account checks.
+
+The full Chrome browser suite passed these migration scenarios plus all prior
+reading, toolbar and mocked-account checks. Mobile preview screenshot inspected.
+A local report was saved as
+`/private/tmp/reader-notes-migration-inventory-2026-11-05.json` with owner-only
+permissions for user review; it is outside the repository. It contains inventory
+metadata, not raw source records. No actual material was imported into the app.
+
+Next: rich document/annotation and dictionary-library models, additional legacy
+adapters and source-file matching before full migration. Supabase setup remains
+pending its confirmed connection; do not claim account/dictionary cloud sync.
+
 ## Verification performed
 
 - `npm test`: 5 tests passed.

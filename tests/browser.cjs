@@ -89,7 +89,9 @@ let browser;
   await page.locator('#show-trash').uncheck();
   assert.equal(await page.getByRole('button',{name:'Open article',exact:true}).count(),1);
   const restoreContext=await browser.newContext();const restorePage=await restoreContext.newPage();
+  restoreContext.setDefaultTimeout(15000);
   await restorePage.goto(origin);
+  await restorePage.waitForFunction(()=>!document.querySelector('main').inert);
   await restorePage.locator('#backup-file').setInputFiles({name:'backup.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(backup))});
   await restorePage.getByRole('button',{name:'Import missing articles'}).click();
   await restorePage.getByRole('button',{name:'Open article',exact:true}).click();
@@ -110,6 +112,87 @@ let browser;
   assert.equal(await other.locator('#new-book').isDisabled(),true);
   await local.close();
   console.log('PASS local edits, history, vocabulary backup/restore, tool visibility/pinning, PDF adaptation, mobile and tab lock');
+
+  const migrationContext=await browser.newContext();migrationContext.setDefaultTimeout(15000);
+  const mp=await migrationContext.newPage();mp.on('pageerror',e=>errors.push(e.message));
+  // An actual version-1 database must upgrade without losing an existing library.
+  await mp.goto(origin+'/migration-seed.html');
+  await mp.evaluate(async()=>{
+    await new Promise((resolve,reject)=>{
+      const request=indexedDB.open('reader-studio-v1',1);
+      request.onupgradeneeded=()=>{request.result.createObjectStore('books',{keyPath:'key'});request.result.createObjectStore('assets',{keyPath:'key'});request.result.createObjectStore('settings');};
+      request.onerror=()=>reject(request.error);
+      request.onsuccess=()=>{
+        const db=request.result,tx=db.transaction('books','readwrite');
+        const id='11111111-1111-4111-8111-111111111111';
+        tx.objectStore('books').put({key:'local:'+id,scope:'local',id,title:'Existing article',language:'en',content:'Keep this edition',notes:'',deleted:false,revision:0,dirty:true,history:[]});
+        tx.oncomplete=()=>{db.close();resolve();};tx.onerror=()=>reject(tx.error);
+      };
+    });
+  });
+  await mp.goto(origin);await mp.waitForFunction(()=>!document.querySelector('main').inert);
+  assert.equal(await mp.getByRole('button',{name:'Open article',exact:true}).count(),1);
+  const migrationKey='fixture-editor-v1';
+  const legacy={archiveType:'study-studio-all-editing-records',archiveVersion:1,records:[
+    {key:migrationKey,format:'json',value:{bodyHTML:'<h1>迁移 · Русский</h1><p>Original source</p><img src="https://migration-invalid.example/pixel"><script>window.migrationExecuted=true</script>',footnotes:[{id:'f1',text:'Source footnote'}]}},
+    {key:migrationKey+'-notes-v1',format:'json',value:[{id:'n1',text:'A reading note'}]},
+    {key:'sb-project-auth-token',format:'json',value:{access_token:'fixture-secret-value'}}
+  ],preferences:[]};
+  const archiveBytes=Buffer.from(JSON.stringify(legacy)+'\n');
+  const migrationPayload=[{name:'studio-fixture.json',mimeType:'application/json',buffer:archiveBytes},
+    {name:'reading-review-catalog.js',mimeType:'text/javascript',buffer:Buffer.from('window.ReadingReviewCatalog='+JSON.stringify([{key:migrationKey,title:'Migrated trial',path:'trial/editor.html'}])+';')},
+    {name:'dictionary.csv',mimeType:'text/csv',buffer:Buffer.from('term,language,definition\n词,zh,word\nслово,ru,word\n')}];
+  let migrationRequests=0;
+  await migrationContext.route('https://migration-invalid.example/**',route=>{migrationRequests++;return route.abort();});
+  await mp.locator('#studio-migration').click();
+  await mp.waitForFunction(()=>document.querySelector('#migration-dialog').open&&!document.querySelector('#migration-files').disabled);
+  await mp.locator('#migration-files').setInputFiles(migrationPayload);
+  await mp.waitForFunction(()=>document.querySelector('#migration-status').textContent.startsWith('Preview ready'));
+  assert.equal(await mp.getByRole('button',{name:'Open article',exact:true}).count(),1,'Preview must not mutate the library');
+  assert.equal(await mp.evaluate(()=>window.migrationExecuted),undefined);assert.equal(migrationRequests,0);
+  await mp.getByText('Inspect records and select trial copies',{exact:true}).click();
+  assert.match(await mp.locator('#migration-records').textContent(),/dictionary entries/);
+  await mp.locator('#migration-stage').click();
+  await mp.waitForFunction(()=>document.querySelector('#migration-status').textContent.startsWith('Original files and the inventory report'));
+  assert.equal(await mp.getByRole('button',{name:'Open article',exact:true}).count(),1,'Staging must not create reading copies');
+  await mp.locator('#migration-saved > details > summary').first().click();
+  const originalDownload=mp.waitForEvent('download');
+  await mp.getByRole('button',{name:'Download original: studio-fixture.json',exact:true}).click();
+  assert.deepEqual(await fs.readFile(await (await originalDownload).path()),archiveBytes);
+  const inventoryDownload=mp.waitForEvent('download');await mp.locator('#migration-report').click();
+  const report=JSON.parse(await fs.readFile(await (await inventoryDownload).path(),'utf8'));
+  assert.equal(report.summary.dictionaryEntries,2);assert.equal(JSON.stringify(report).includes('fixture-secret-value'),false);
+  await mp.getByRole('checkbox',{name:'Select Migrated trial',exact:true}).check();
+  await mp.locator('#migration-import').click();
+  await mp.waitForFunction(()=>document.querySelector('#migration-status').textContent.includes('Acknowledge'));
+  await mp.locator('#migration-acknowledge').check();await mp.locator('#migration-import').click();
+  await mp.waitForFunction(()=>document.querySelector('#migration-status').textContent.startsWith('Imported 1 plain-text'));
+  assert.equal(await mp.getByRole('button',{name:'Open article',exact:true}).count(),2);
+  assert.equal(await mp.getByRole('checkbox',{name:'Select Migrated trial',exact:true}).isDisabled(),true,'Repeat import is blocked');
+  await mp.locator('#close-migration').click();
+  await mp.locator('.book').filter({hasText:'Migrated trial'}).getByRole('button',{name:'Open article',exact:true}).click();
+  assert.equal(await mp.locator('#content').inputValue(),'迁移 · Русский\nOriginal source');
+  assert.match(await mp.locator('#notes').inputValue(),/A reading note/);assert.match(await mp.locator('#notes').inputValue(),/Source footnote/);
+  await mp.locator('#content').fill('My migrated edition');await mp.locator('#save').click();await mp.locator('#back').click();
+  await mp.locator('#studio-migration').click();
+  await mp.waitForFunction(()=>document.querySelector('#migration-dialog').open&&!document.querySelector('#migration-files').disabled);
+  await mp.locator('#migration-files').setInputFiles(migrationPayload);
+  await mp.waitForFunction(()=>document.querySelector('#migration-status').textContent.startsWith('Preview ready'));
+  assert.match(await mp.locator('#migration-records').textContent(),/destination conflict/);
+  assert.equal(await mp.getByRole('checkbox',{name:'Select Migrated trial',exact:true}).isDisabled(),true);
+  // A stale-preview collision aborts the entire transaction, including earlier inserts.
+  const atomic=await mp.evaluate(async()=>{
+    const store=await import('/storage.js'),before=await store.listBooks('local'),batches=await store.listMigrationBatches('local');
+    const fresh={...before[0],id:crypto.randomUUID(),title:'Must roll back'};
+    let rejected=false;try{await store.commitMigration('local',{id:crypto.randomUUID(),createdAt:new Date().toISOString(),report:{}},[],[fresh,before[0]]);}catch{rejected=true;}
+    return {rejected,before:before.length,after:(await store.listBooks('local')).length,batchesBefore:batches.length,batchesAfter:(await store.listMigrationBatches('local')).length};
+  });
+  assert.equal(atomic.rejected,true);assert.equal(atomic.before,atomic.after);assert.equal(atomic.batchesBefore,atomic.batchesAfter);
+  await mp.setViewportSize({width:390,height:844});
+  assert.equal(await mp.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+  await mp.screenshot({path:path.join(root,'test-results/migration-mobile.png'),fullPage:true});
+  await migrationContext.close();
+  console.log('PASS migration preview, inert legacy HTML, version-1 storage upgrade, byte-exact staging, trial import, duplicate/conflict protection and transaction rollback');
 
   const documents=new Map();let offline=false,signupRedirect,recoveryRedirect;
   const accountA='a1000000-0000-4000-8000-000000000001',accountB='b1000000-0000-4000-8000-000000000002';
