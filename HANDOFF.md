@@ -7,6 +7,11 @@ with `supabase/migration-categories.sql`. Source/saved editions share collection
 Filters, edition counts, chapter ordering and collapsible sections are included.
 New articles use My reading materials. No user content was modified/reimported.
 
+Live verification: 510 editions in 21 collections across six populated Studio
+categories. The grouped library and filters were visually inspected after reload.
+Separator-safe metadata extraction reads only edition metadata; preserved payloads
+are unchanged.
+
 28 unit/SQL tests and both browser suites pass. Anonymous live metadata-view access
 returns 401. The view's isolation is also covered by the cross-account SQL test.
 
