@@ -7,9 +7,10 @@ only reviewed public snapshots are readable. `config.js` now contains its public
 publishable key and enables sharing. Auth confirms email, disables anonymous
 sign-in, and returns only to the exact Reader Notes deployment URL.
 
-Custom SMTP remains unconfigured. General-user signup/recovery email delivery,
-real account confirmation, and two-device sync need verification after connecting
-a mail provider. No real credentials were collected, no emails sent, and the
+Gmail custom SMTP was saved by the user and verified after a dashboard reload.
+Personal Gmail deliverability concerns and a future transactional-provider migration
+are explicitly deferred at the user’s request. Real signup/recovery email delivery,
+account confirmation, and two-device sync remain unverified. No real credentials were collected, no emails sent, and the
 calendar database was untouched. See `supabase/SETUP.md`.
 
 The historical entries below describe earlier checkpoints and are superseded by

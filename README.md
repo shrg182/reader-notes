@@ -130,8 +130,8 @@ resolved first. Export backups before clearing browser data.
 
 The published deployment uses its own Reader Notes Supabase project. Owner-only
 storage and Private / Group / Public snapshot policies are installed and verified.
-**General-user signup emails still need custom SMTP configuration**; the default
-mail service is restricted to organization team addresses. See
+Gmail custom SMTP is configured. Personal Gmail deliverability improvements are
+deferred at the user’s request; actual signup/recovery delivery still needs testing. See
 [supabase/SETUP.md](supabase/SETUP.md) for the live checkpoint and remaining tests.
 
 For a separate installation, use a new project so it cannot affect the calendar:

@@ -55,12 +55,14 @@ sharing is enabled. The calendar project was not modified.
 
 Email/password signup and email confirmation are enabled; anonymous sign-in is
 disabled. Site URL and the sole allowed redirect are exactly the deployment URL.
-Custom SMTP is still disabled. Supabase's default mail service only delivers to
-organization team addresses and is rate limited; configure a verified SMTP sender
-before inviting friends. See https://supabase.com/docs/guides/auth/auth-smtp.
+Gmail custom SMTP was saved by the user and verified after a dashboard reload:
+`smtp.gmail.com`, port `465`, sender name `Reader Notes`. The sender address is
+configured privately in Supabase. No SMTP credential is stored in this repository.
+The user explicitly deferred the personal Gmail deliverability concern and any
+migration to a transactional mail provider; keep that as future work.
 Real signup/confirmation, password recovery, and simultaneous physical-device
-sync still require user testing after mail delivery is configured. No test email
-was sent and no real password was entered by the agent.
+sync remain unverified. No test email was sent and no real password was entered
+by the agent. See https://supabase.com/docs/guides/auth/auth-smtp.
 
 Official references:
 
