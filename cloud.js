@@ -92,8 +92,16 @@ export class Cloud {
   async importIndex(){
     const all=[];for(let offset=0;;offset+=1000){const page=await this.sharingRead(`reader_import_records?select=id,kind,title,book_id,fingerprint&order=id.asc&limit=1000&offset=${offset}`);all.push(...page.map(r=>({...r,bookId:r.book_id})));if(page.length<1000)return all;}
   }
-  async importPayload(id){return (await this.sharingRead(`reader_import_records?select=*&id=eq.${encodeURIComponent(id)}`))[0]||null;}
-  async importRecord(record){return this.sharingRpc('reader_import_record',{p_record:record});}
+  async importPayload(id){
+    const row=(await this.sharingRead(`reader_import_records?select=*&id=eq.${encodeURIComponent(id)}`))[0]||null;
+    if(row?.payload?.encoding==='json-text-v1')row.payload=JSON.parse(row.payload.data);
+    return row;
+  }
+  async importRecord(record){
+    // Studio dictionary keys contain NUL separators, which PostgreSQL jsonb
+    // cannot represent directly. A JSON text envelope preserves them exactly.
+    return this.sharingRpc('reader_import_record',{p_record:{...record,payload:{encoding:'json-text-v1',data:JSON.stringify(record.payload)}}});
+  }
   async sharedSources(offset=0){return this.sharingRead(`reader_publications?select=*&visibility=neq.private&order=updated_at.desc&limit=50&offset=${offset}`);}
   async sourceById(id){return (await this.sharingRead(`reader_publications?select=*&id=eq.${encodeURIComponent(id)}`))[0]||null;}
   async ownPublication(id){return (await this.sharingRead(`reader_publications?select=*&document_id=eq.${encodeURIComponent(id)}&owner_id=eq.${this.session.user.id}`))[0]||null;}

@@ -11,6 +11,8 @@ class Editor(HTMLParser):
     def handle_starttag(self,tag,attrs):
         if self.depth: self.depth+=tag not in {'area','base','br','col','embed','hr','img','input','link','meta','param','source','track','wbr'}
         elif dict(attrs).get('id')=='editor': self.depth=1; self.start=self.source_offset()+len(self.get_starttag_text())
+    def handle_startendtag(self,tag,attrs):
+        pass
     def handle_endtag(self,tag):
         if self.depth:
             self.depth-=1
