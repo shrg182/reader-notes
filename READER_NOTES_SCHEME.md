@@ -123,6 +123,22 @@ synchronization and independent downloadable backups are different safeguards.
 - Preserve accessible labels, keyboard operation, visible focus, and readable
   controls. Avoid technical implementation text in everyday workflows.
 
+### Modular toolbar implementation (preview 0.2)
+
+Six standard blocks now cover Navigate, View, Panes & layout, Dictionary &
+vocabulary, Read aloud, and Files & recovery. All blocks support visibility,
+expansion and pinning. Preferences inherit by article → format → user defaults
+→ built-in defaults, with separate device-local phone/desktop profiles. Reading
+mode hides and restores the tool blocks. Article/PDF adapters govern supported
+actions; later formats will add adapters to the same system.
+
+Dictionaries are tools within their own block. Current lookup opens explicitly
+chosen external providers; personal vocabulary stores definitions, context,
+language and notes separately from article text. Device vocabulary is included
+in backups. Cloud synchronization of vocabulary and toolbar preferences is not
+yet implemented. Rich editing and annotation blocks will be registered only
+when their underlying document capabilities are ready.
+
 ## Delivery stages and completion criteria
 
 ### 1 — Foundation (current implementation)

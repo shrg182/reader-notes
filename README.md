@@ -6,6 +6,42 @@ The interface uses a Sheets-inspired worksheet style: compact green-accented
 header, pale toolbars, a column-based library, and bordered editing panels. Phone
 layouts keep readable text and touch-sized controls.
 
+## Modular reading tools
+
+The workspace has six shared tool blocks: Navigate, View, Panes & layout,
+Dictionary & vocabulary, Read aloud, and Files & recovery. Use **Customize tools**
+to show/hide blocks or choose Reading, Study, or Editing presets. Each header
+expands/collapses its tools and offers Pin/Unpin. Unpinned blocks collapse when
+switching articles; pinned blocks retain their configured expansion. Reading
+mode hides every block temporarily; Show tools restores the arrangement.
+
+Save block settings for **This article**, **This file format**, or **My defaults**,
+in that precedence order. Current format adapters distinguish editable text
+articles (including TXT/Markdown imports) from original PDF references. EPUB is
+not yet supported. Phone and desktop settings are stored separately per library
+on this device; settings do not yet synchronize to the account's cloud storage.
+
+The **Tools for** selector identifies the target pane. Article navigation has
+find-next and jump-to-start; View changes text size/spacing. PDF page search,
+zoom and rotation use the browser PDF viewer's controls. Native PDF selection
+cannot be captured by the shared toolbar; enter words manually for PDF lookup.
+Layout supports side-by-side, stacked and active-pane focus.
+
+Dictionary lookup is a tool, separate from continuous read-aloud controls.
+Select article text and choose **Look up selection**, or enter a word manually.
+Enable/reorder Wiktionary and Cambridge links, or open Google Translate. External
+links transmit the entered word only after a click. There is no automatic lookup
+request, built-in dictionary dataset, or OCR. Pronunciation and selected-text
+read-aloud use browser speech services and available voices.
+
+Save a word with its language, definition, source context and personal note.
+Vocabulary review searches this article or all articles and links to available
+source articles. Saved words can be edited/removed. Vocabulary is account-scoped
+device data and included in JSON backups; **it does not yet sync to Supabase**.
+Account sign-out offers a backup before clearing a device vocabulary cache.
+Backup imports validate vocabulary sources and restore words only alongside
+missing articles, avoiding changes to existing articles and vocabulary.
+
 Repository: <https://github.com/shrg182/reader-notes>
 
 Website: <https://shrg182.github.io/reader-notes/>

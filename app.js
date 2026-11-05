@@ -1,6 +1,8 @@
 import {validateBook,validateBackup,makeBackup,mergeRemote,sameEdition} from './core.js';
 import * as db from './storage.js';
 import {Cloud} from './cloud.js';
+import {ReaderTools} from './toolbar.js';
+import {validateStudy} from './toolbar-model.js';
 
 const $=id=>document.getElementById(id);
 const cloud=new Cloud(window.READER_CONFIG);
@@ -8,6 +10,7 @@ let scope='local', books=[], active=null, unsaved=false, busy=false, timer, pdfU
 let accountLock=null, ready=false;
 const notify=(message,error=false)=>{ $('notice').textContent=message;$('notice').classList.toggle('error',error); };
 const status=message=>{$('save-status').textContent=message;};
+const tools=new ReaderTools({context:()=>({scope,book:current(),books,hasPdf:Boolean(pdfUrl)}),run,notify,openSource:openBook});
 function node(tag,text,className){const n=document.createElement(tag);n.textContent=text;if(className)n.className=className;return n;}
 function button(text,fn){const b=node('button',text);b.onclick=()=>run(fn);return b;}
 function download(name,data,type='application/json'){
@@ -17,10 +20,10 @@ function download(name,data,type='application/json'){
 async function run(fn,allowTyping=false){
   if(busy)return;
   busy=true;
-  const controls=[...document.querySelectorAll('button,input,textarea')].filter(el=>!el.disabled&&(!allowTyping||el.tagName==='BUTTON'));
+  const controls=[...document.querySelectorAll('button,input,textarea,select')].filter(el=>!el.disabled&&(!allowTyping||el.matches('button,select,input[type=checkbox],input[type=radio]')));
   controls.forEach(el=>el.disabled=true);
   try{await fn();}catch(e){notify(e.message||'The operation failed.',true);if(active)status(unsaved?'Not saved — retry Save & sync':'Device draft retained · sync incomplete');}
-  finally{controls.forEach(el=>el.disabled=!ready);busy=false;}
+  finally{controls.forEach(el=>el.disabled=!ready);if(ready)tools.availability();document.querySelector('main').inert=false;document.querySelector('.topbar').inert=false;busy=false;}
 }
 async function acquireLock(nextScope){
   if(accountLock){accountLock();accountLock=null;}
@@ -39,7 +42,7 @@ async function loadScope(){
   scope=next;books=await db.listBooks(scope);active=null;unsaved=false;closePdf();
   $('workspace-view').hidden=true;$('library-view').hidden=false;
   $('identity').textContent=cloud.session?`Private library · ${cloud.session.user.email}`:'Local library · this browser';
-  render();updateAccount();ready=true;
+  await tools.activate();render();updateAccount();ready=true;document.querySelector('main').inert=false;document.querySelector('.topbar').inert=false;
 }
 function render(){
   const query=$('search').value.toLocaleLowerCase(), trash=$('show-trash').checked;
@@ -64,9 +67,11 @@ function paintEditor(book){
   unsaved=false;status(book.conflict?'Conflict needs review':book.dirty?(cloud.session?'Saved on this device · waiting to sync':'Saved on this device'):'Synced');
 }
 async function openBook(id){
+  if(!tools.confirmLeave())return;
   await saveDraft();closePdf();active=id;paintEditor(current());
   $('library-view').hidden=true;$('workspace-view').hidden=false;
   const asset=await db.getAsset(scope,id);if(asset)showPdf(asset.file);
+  await tools.activate();
   $('title').focus();
 }
 function historical(book){return {...validateBook(book),savedAt:book.updatedAt||new Date().toISOString()};}
@@ -138,8 +143,8 @@ async function showHistory(){
     }));$('review-body').append(row);
   }
 }
-function closePdf(){if(pdfUrl)URL.revokeObjectURL(pdfUrl);pdfUrl=null;$('pdf-view').removeAttribute('data');$('reference').hidden=true;$('remove-pdf').hidden=true;}
-function showPdf(file){closePdf();pdfUrl=URL.createObjectURL(file);$('pdf-view').data=pdfUrl;$('pdf-download').href=pdfUrl;$('pdf-name').textContent=file.name;$('reference').hidden=false;$('remove-pdf').hidden=false;}
+function closePdf(){if(pdfUrl)URL.revokeObjectURL(pdfUrl);pdfUrl=null;$('pdf-view').removeAttribute('data');$('reference').hidden=true;$('remove-pdf').hidden=true;tools.target='article';$('tool-target').value='article';$('tool-target').querySelector('[value=pdf]').disabled=true;tools.applyView();}
+function showPdf(file){closePdf();pdfUrl=URL.createObjectURL(file);$('pdf-view').data=pdfUrl;$('pdf-download').href=pdfUrl;$('pdf-name').textContent=file.name;$('reference').hidden=false;$('remove-pdf').hidden=false;$('tool-target').querySelector('[value=pdf]').disabled=false;}
 function updateAccount(){
   $('email').readOnly=Boolean(cloud.session);
   if(cloud.session)$('email').value=cloud.session.user.email;
@@ -150,6 +155,7 @@ function updateAccount(){
   $('account-button').textContent=cloud.session?'My account':'Account';
 }
 async function authAction(kind){
+  if(!tools.confirmLeave())return;
   await saveDraft();const email=$('email').value.trim(),password=$('password').value;
   if(!$('email').reportValidity())return;
   if(kind!=='recover'&&!$('password').reportValidity())return;
@@ -173,7 +179,7 @@ for(const id of ['title','language','content','notes'])$(id).oninput=()=>{
 };
 $('save').onclick=()=>run(sync);
 $('sync-library').onclick=()=>run(async()=>{if(!cloud.session){notify('Sign in to synchronize. Local articles remain on this device.');return;}await sync();});
-$('back').onclick=()=>run(async()=>{await saveDraft();active=null;closePdf();$('workspace-view').hidden=true;$('library-view').hidden=false;render();});
+$('back').onclick=()=>run(async()=>{if(!tools.confirmLeave())return;await saveDraft();tools.navigateAway();active=null;closePdf();$('workspace-view').hidden=true;$('library-view').hidden=false;render();});
 $('import-text').onclick=()=>$('text-file').click();
 $('text-file').onchange=()=>run(async()=>{
   const file=$('text-file').files[0];if(!file)return;
@@ -193,22 +199,26 @@ $('pdf-file').onchange=()=>run(async()=>{
 $('remove-pdf').onclick=()=>run(async()=>{await db.deleteAsset(scope,active);closePdf();});
 $('history').onclick=()=>run(showHistory);
 $('delete-book').onclick=()=>run(async()=>{
+  if(!tools.confirmLeave())return;
   await saveDraft();await changeBook(current(),{deleted:true});active=null;closePdf();$('workspace-view').hidden=true;$('library-view').hidden=false;render();await sync();
 });
 $('export-text').onclick=()=>run(async()=>{await saveDraft();const b=current();download('reader-article.txt',`${b.title}\n\n${b.content}\n\nReading notes\n${b.notes}`,'text/plain;charset=utf-8');});
-$('backup').onclick=()=>run(async()=>{
+async function exportBackup(){
   await saveDraft();const payload=makeBackup(books);
   // Carry recovery editions as separate backup records without exposing tokens.
   payload.recovery=books.map(b=>({id:b.id,history:b.history||[],conflict:b.conflict?validateBook(b.conflict):null}));
+  payload.study=await tools.exportStudy(books.map(book=>book.id));
   download(`reader-notes-${new Date().toISOString().slice(0,10)}.json`,JSON.stringify(payload,null,2));
   notify('Backup exported. Includes article text, notes, trash and recovery editions; excludes reference PDFs.');
-});
+}
+$('backup').onclick=()=>run(exportBackup);
 $('restore').onclick=()=>$('backup-file').click();
 $('backup-file').onchange=()=>run(async()=>{
   const file=$('backup-file').files[0];if(!file)return;
   try{
     await saveDraft();if(file.size>25_000_000)throw new Error('Backup exceeds the 25 MB import limit.');
     const data=JSON.parse(await file.text()),incoming=validateBackup(data);
+    const incomingWords=validateStudy(data.study,incoming.map(book=>book.id));
     const recovery=new Map();
     if(data.recovery!==undefined){
       if(!Array.isArray(data.recovery)||data.recovery.length>5000)throw new Error('Invalid recovery records.');
@@ -218,10 +228,12 @@ $('backup-file').onchange=()=>run(async()=>{
       }
     }
     const duplicates=incoming.filter(b=>books.some(old=>old.id===b.id)).length;
-    review('Import backup');$('review-body').append(node('p',`${incoming.length} articles, including ${incoming.filter(b=>b.deleted).length} in trash. ${duplicates} existing IDs will be skipped. Destination: ${cloud.session?cloud.session.user.email:'local library'}.`),node('p','Only missing articles will be added. Existing editions remain intact. Reference PDFs must be reattached.'));
+    review('Import backup');$('review-body').append(node('p',`${incoming.length} articles, ${incomingWords.length} vocabulary entries, including ${incoming.filter(b=>b.deleted).length} articles in trash. ${duplicates} existing article IDs will be skipped. Destination: ${cloud.session?cloud.session.user.email:'local library'}.`),node('p','Only missing articles and their vocabulary will be added. Existing editions remain intact. Reference PDFs must be reattached.'));
     $('review-actions').append(button('Import missing articles',async()=>{
       const additions=incoming.filter(b=>!books.some(old=>old.id===b.id)).map(b=>({...b,revision:0,dirty:true,history:recovery.get(b.id)||[],updatedAt:new Date().toISOString()}));
-      await db.putBooks(scope,additions);books.push(...additions);render();$('review-dialog').close();notify(`Imported ${additions.length} articles on this device. Use Sync now to upload account articles.`);
+      const existingWords=await db.getSetting(`vocabulary:${scope}`)||[],ids=new Set(existingWords.map(word=>word.id));
+      const vocabulary=[...existingWords,...incomingWords.filter(word=>additions.some(book=>book.id===word.bookId)&&!ids.has(word.id))];
+      await db.putBooks(scope,additions,vocabulary);books.push(...additions);await tools.activate();render();$('review-dialog').close();notify(`Imported ${additions.length} articles on this device. Use Sync now to upload account articles. Vocabulary remains on this device and in backups.`);
     }));
   }finally{$('backup-file').value='';}
 });
@@ -231,12 +243,19 @@ $('sign-up').onclick=()=>run(()=>authAction('signup'));
 $('forgot').onclick=()=>run(()=>authAction('recover'));
 $('reauthenticate').onclick=()=>{$('credentials').hidden=false;$('password').focus();};
 $('sign-out').onclick=()=>run(async()=>{
+  if(!tools.confirmLeave())return;
   await saveDraft();
   if(books.some(b=>b.dirty||b.conflict)){
     review('Save your pending work');$('review-body').append(node('p','This account has device drafts or conflicts. Sync or export a backup before signing out. Signing out clears this account’s device cache.'));
     $('review-actions').append(button('Keep account open',()=>{$('review-dialog').close();$('account-dialog').close();}));return;
   }
-  const oldScope=scope;await cloud.signOut();await db.clearAccount(oldScope);await loadScope();$('account-dialog').close();notify('Signed out on this device.');
+  async function finish(){const oldScope=scope;tools.stop();await cloud.signOut();await db.clearAccount(oldScope);await loadScope();$('account-dialog').close();notify('Signed out on this device.');}
+  const study=await tools.exportStudy(books.map(book=>book.id));
+  if(study.vocabulary.length){
+    review('Back up personal vocabulary');$('review-body').append(node('p','Vocabulary is saved on this device and has no cloud copy yet. Export a backup before signing out clears this account’s device cache.'));
+    $('review-actions').append(button('Export backup & sign out',async()=>{await exportBackup();await finish();$('review-dialog').close();}));return;
+  }
+  await finish();
 });
 $('recovery-form').onsubmit=e=>{e.preventDefault();run(async()=>{
   $('recovery-status').textContent='Updating password…';
@@ -244,7 +263,7 @@ $('recovery-form').onsubmit=e=>{e.preventDefault();run(async()=>{
   catch(error){$('recovery-status').textContent=error.message;throw error;}
 });};
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>$(b.dataset.close).close());
-window.addEventListener('beforeunload',e=>{if(unsaved||busy){e.preventDefault();e.returnValue='';}});
+window.addEventListener('beforeunload',e=>{if(unsaved||busy||tools.wordDirty){e.preventDefault();e.returnValue='';}});
 window.addEventListener('online',()=>run(sync));
 setInterval(()=>{if(!busy&&!unsaved&&cloud.session&&!document.querySelector('dialog[open]')&&!['INPUT','TEXTAREA'].includes(document.activeElement.tagName))run(sync);},60_000);
 await run(async()=>{

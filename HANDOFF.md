@@ -62,6 +62,35 @@ passed (5). No real account emails or password changes were performed, and no
 live database migration has been run. `config.js` still has blank project URL
 and client key; only the production app redirect is populated.
 
+## Modular toolbar and dictionaries — preview 0.2
+
+The user approved a universal block toolbar and dictionaries categorized as
+tools. `toolbar-model.js` defines the block catalog, article/PDF capabilities,
+preference inheritance and vocabulary backup validation. `toolbar.js` provides
+six blocks, visibility/expansion/pinning, reading mode, presets, per-article /
+format / default preferences, and separate phone/desktop profiles. Modules must
+be included in the Pages artifact (workflow updated).
+
+Dictionary & vocabulary supplies selection/manual lookup, ordered external
+Wiktionary/Cambridge links, Google Translate link, browser pronunciation, word
+capture/edit/remove, context and personal notes, cross-article review and source
+navigation. Read aloud is a separate block. External lookup is click-only;
+native PDF selections cannot cross the browser viewer boundary. PDF navigation
+and zoom use its native controls; no unsupported OCR or EPUB capability is claimed.
+
+Vocabulary lives in account/local-scoped IndexedDB settings and is included in
+JSON exports. Import validation rejects invalid/orphaned/duplicate word IDs and
+atomically writes added articles plus their vocabulary. Existing article IDs and
+their vocabulary are skipped. Account sign-out with vocabulary requires exporting
+a backup first, because vocabulary has no cloud copy. Preference and vocabulary
+cloud synchronization are still future work; reader Supabase setup remains pending.
+
+Expanded blocks use full-width rows to avoid large blank areas. Unsaved
+vocabulary fields have navigation/reload guards. Browser coverage includes word
+capture, vocabulary backup round-trip, hidden blocks, persisted pin/visibility,
+reading mode, PDF capability switching, and phone layout selection. Unit suite
+expanded to 8 tests including inheritance and vocabulary validation.
+
 ## Verification performed
 
 - `npm test`: 5 tests passed.
