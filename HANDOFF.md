@@ -28,9 +28,11 @@ No live Supabase project was created, configured or migrated. `config.js`
 intentionally contains empty connection settings.
 
 The user supplied `https://github.com/shrg182/reader-notes` as the repository.
-It was empty when checked. This workspace is initialized on `main` for the
-initial foundation commit and push. Website hosting is not configured by this
-step; repository publication and live app hosting are separate.
+It was empty when checked. The initial foundation was pushed on `main` as
+`7a43b0c`. The user then supplied `https://shrg182.github.io/reader-notes/`;
+the initial check returned HTTP 404. `.github/workflows/pages.yml` adds unit
+checks and a Pages deployment containing public app assets only. Repository
+Pages must use the GitHub Actions source. Verify live deployment separately.
 
 ## Verification performed
 

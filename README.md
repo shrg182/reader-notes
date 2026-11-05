@@ -4,6 +4,14 @@ Your personal reading and editing workspace.
 
 Repository: <https://github.com/shrg182/reader-notes>
 
+Website: <https://shrg182.github.io/reader-notes/>
+
+GitHub Pages deployment is defined in `.github/workflows/pages.yml`. Set the
+repository's **Settings → Pages → Source** to **GitHub Actions**. Pushes to
+`main` run unit checks and publish only the app's public assets; project notes,
+SQL scripts and tests are excluded from the deployed website. Account/cloud
+features still require the Supabase configuration described below.
+
 The product and delivery plan is [READER_NOTES_SCHEME.md](READER_NOTES_SCHEME.md).
 This is a new local project; it does not modify Study Studio, Daymark Calendar,
 or Personal Reader.
