@@ -238,18 +238,24 @@ $('sign-out').onclick=()=>run(async()=>{
   }
   const oldScope=scope;await cloud.signOut();await db.clearAccount(oldScope);await loadScope();$('account-dialog').close();notify('Signed out on this device.');
 });
-$('recovery-form').onsubmit=e=>{e.preventDefault();run(async()=>{await cloud.updatePassword($('new-password').value);$('new-password').value='';$('recovery-dialog').close();notify('Password updated.');});};
+$('recovery-form').onsubmit=e=>{e.preventDefault();run(async()=>{
+  $('recovery-status').textContent='Updating password…';
+  try{await cloud.updatePassword($('new-password').value);$('new-password').value='';$('recovery-dialog').close();notify('Password updated.');}
+  catch(error){$('recovery-status').textContent=error.message;throw error;}
+});};
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>$(b.dataset.close).close());
 window.addEventListener('beforeunload',e=>{if(unsaved||busy){e.preventDefault();e.returnValue='';}});
 window.addEventListener('online',()=>run(sync));
 setInterval(()=>{if(!busy&&!unsaved&&cloud.session&&!document.querySelector('dialog[open]')&&!['INPUT','TEXTAREA'].includes(document.activeElement.tagName))run(sync);},60_000);
 await run(async()=>{
   await db.openStore();await cloud.restore();
-  let recovery=false;
-  if(cloud.configured&&location.hash.includes('access_token')){
+  let authReturn=false,linkError;
+  if(cloud.configured&&/(access_token|error)=/.test(location.hash)){
     const hash=location.hash;history.replaceState(null,'',location.pathname+location.search);
-    recovery=await cloud.acceptRecovery(hash);
+    try{authReturn=await cloud.acceptAuthReturn(hash);}catch(error){linkError=error;}
   }
-  await loadScope();if(recovery)$('recovery-dialog').showModal();
+  await loadScope();if(authReturn==='recovery')$('recovery-dialog').showModal();
   if(cloud.session&&navigator.onLine)await sync();
+  if(linkError)notify(linkError.message,true);
+  else if(authReturn==='signup')notify('Email confirmed. You are signed in to your private library.');
 });

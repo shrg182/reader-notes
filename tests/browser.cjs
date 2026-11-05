@@ -28,6 +28,7 @@ let browser;
   const origin=`http://127.0.0.1:${server.address().port}`;
   browser=await chromium.launch({channel:'chrome',headless:true});
   const local=await browser.newContext();const page=await local.newPage();
+  local.setDefaultTimeout(15000);
   page.on('pageerror',e=>errors.push(e.message));
   await page.goto(origin);await page.locator('#new-book').waitFor();
   await page.locator('#new-book').click();
@@ -79,9 +80,10 @@ let browser;
   await local.close();
   console.log('PASS local edits, history, reload, backup/restore, trash, mobile and tab lock');
 
-  const documents=new Map();let offline=false;
+  const documents=new Map();let offline=false,signupRedirect,recoveryRedirect;
   const accountA='a1000000-0000-4000-8000-000000000001',accountB='b1000000-0000-4000-8000-000000000002';
   const cloudContext=await browser.newContext();
+  cloudContext.setDefaultTimeout(15000);
   await cloudContext.route('**/config.js',route=>route.fulfill({contentType:'text/javascript',body:'window.READER_CONFIG={supabaseUrl:"https://reader.test",supabaseKey:"test-public"}'}));
   await cloudContext.route('https://reader.test/**',async route=>{
     if(offline){await route.abort('internetdisconnected');return;}
@@ -93,7 +95,10 @@ let browser;
       return respond({access_token:id,refresh_token:id,expires_in:3600,user:{id,email:body.email||'a@example.com'}});
     }
     if(url.pathname==='/auth/v1/logout')return respond({});
+    if(url.pathname==='/auth/v1/signup'){signupRedirect=url.searchParams.get('redirect_to');return respond({user:{email:body.email}});}
+    if(url.pathname==='/auth/v1/recover'){recoveryRedirect=url.searchParams.get('redirect_to');return respond({});}
     const owner=req.headers().authorization?.replace('Bearer ','');
+    if(url.pathname==='/auth/v1/user')return respond({id:owner,email:'a@example.com'});
     if(url.pathname==='/rest/v1/reader_documents')return respond([...documents.values()].filter(d=>d.user_id===owner));
     if(url.pathname==='/rest/v1/rpc/save_reader_document'){
       const key=owner+':'+body.p_id,old=documents.get(key);
@@ -104,6 +109,14 @@ let browser;
     return route.fulfill({status:404,body:'{}'});
   });
   const cp=await cloudContext.newPage();cp.on('pageerror',e=>errors.push(e.message));await cp.goto(origin);
+  await cp.locator('#account-button').click();await cp.locator('#email').fill('a@example.com');await cp.locator('#password').fill('password123');
+  await cp.locator('#sign-up').click();
+  await cp.waitForFunction(()=>document.querySelector('#account-status').textContent.includes('confirm your account'));
+  assert.equal(signupRedirect,origin+'/');
+  await cp.locator('#forgot').click();
+  await cp.waitForFunction(()=>document.querySelector('#account-status').textContent.includes('reset link'));
+  assert.equal(recoveryRedirect,origin+'/');
+  await cp.getByRole('button',{name:'Close account',exact:true}).click();
   async function signin(email){
     await cp.locator('#account-button').click();await cp.locator('#email').fill(email);await cp.locator('#password').fill('password123');
     await cp.locator('#sign-in').click();await cp.waitForFunction(()=>document.querySelector('#identity').textContent.includes('Private library'));
@@ -142,6 +155,28 @@ let browser;
   await signin('a@example.com');await cp.getByRole('button',{name:'Open article',exact:true}).click();
   assert.equal(await cp.locator('#notes').inputValue(),'Offline draft survives');
   await cp.setViewportSize({width:1440,height:1000});await cp.screenshot({path:path.join(root,'test-results/desktop.png'),fullPage:true});
+  await cp.locator('#account-button').click();await cp.locator('#sign-out').click();
+  await cp.waitForFunction(()=>document.querySelector('#identity').textContent==='Local library · this browser');
+  await cp.goto(origin+'/?callback=expired#error=access_denied&error_description=This+link+expired');
+  await cp.waitForFunction(()=>document.querySelector('#notice').textContent==='This link expired');
+  assert.equal(await cp.locator('#new-book').isEnabled(),true,'Invalid auth links must not disable local reading');
+  assert.equal(new URL(cp.url()).hash,'');
+  await cp.goto(origin+`/?callback=confirmation#access_token=${accountA}&refresh_token=test&expires_in=3600&type=signup`);
+  await cp.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Email confirmed'));
+  assert.equal(new URL(cp.url()).hash,'');
+  await cp.goto(origin+`/?callback=recovery#access_token=${accountA}&refresh_token=test&expires_in=3600&type=recovery`);
+  await cp.locator('#recovery-dialog').waitFor({state:'visible'});
+  await cp.locator('#new-password').fill('new-password123');
+  await cp.getByRole('button',{name:'Update password',exact:true}).click();
+  await cp.waitForFunction(()=>document.querySelector('#notice').textContent==='Password updated.');
+  assert.equal(new URL(cp.url()).hash,'');
   console.log('PASS mocked account isolation, revision conflicts, offline reload/retry and remembered sessions');
+  console.log('PASS signup/reset redirects, confirmation callbacks, password recovery and expired-link handling');
   assert.deepEqual(errors,[]);
-})().then(async()=>{await browser?.close();server.close();}).catch(async e=>{console.error(e);await browser?.close();server.close();process.exitCode=1;});
+})().then(async()=>{await browser?.close();server.close();}).catch(async e=>{
+  console.error(e);
+  for(const context of browser?.contexts()||[])for(const page of context.pages()){
+    console.error(await page.evaluate(()=>({notice:document.querySelector('#notice')?.textContent,identity:document.querySelector('#identity')?.textContent,review:document.querySelector('#review-dialog[open]')?.textContent})).catch(()=>({})));
+  }
+  await browser?.close();server.close();process.exitCode=1;
+});

@@ -44,6 +44,24 @@ Phone layouts stack library fields and keep 44px touch controls. Existing browse
 regressions passed after the change; desktop and mobile screenshots were
 visually inspected. Saving, accounts and storage formats are unchanged.
 
+## User-system setup checkpoint
+
+The user requested live account configuration, then chose to install and connect
+Supabase. A matching integration was found and suggested, but its connection has
+not yet been confirmed. Firefox's dashboard currently requires sign-in. Do not
+substitute the calendar project's public configuration or describe provisioning
+as complete. Resume the original setup immediately when the integration is
+connected; `supabase/SETUP.md` records the exact project/Auth settings.
+
+Prepared explicit production redirects for signup/recovery, confirmation-link
+session validation, project-bound remembered sessions, recovery-form errors and
+expired-link handling that preserves local reading. Mocked browser scenarios
+passed signup/reset redirects, confirmation, password update and expired links,
+in addition to existing account isolation/conflict/offline checks. Unit tests
+passed (5). No real account emails or password changes were performed, and no
+live database migration has been run. `config.js` still has blank project URL
+and client key; only the production app redirect is populated.
+
 ## Verification performed
 
 - `npm test`: 5 tests passed.

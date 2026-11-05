@@ -80,8 +80,13 @@ copied. Use a new project so this migration cannot affect the calendar.
    is public and ownership policies are the actual access boundary.
 5. Run [supabase/verify.sql](supabase/verify.sql) in a disposable test project;
    it rolls back its fixtures. Check two actual accounts and two devices too.
-6. Open the app, create/confirm an account, then sign in. If confirmation gives
-   you a session link, return to the app and sign in with your password.
+6. Open the app and create/confirm an account. A valid confirmation link signs
+   you in; you can also sign in with your password. Signup and recovery links
+   target the configured `appUrl` (the production Reader Notes URL by default).
+
+The exact project provisioning and Auth settings checklist is in
+[supabase/SETUP.md](supabase/SETUP.md). Saved sessions are bound to their project
+URL, so changing projects does not reuse a token issued by another project.
 
 The database stores one document per article in this first stage, with immutable
 server revisions. Source PDF upload and cloud history browsing arrive in stage 2.

@@ -3,6 +3,7 @@ export class Cloud {
   constructor(config) {
     this.url=(config?.supabaseUrl||'').replace(/\/$/,'');
     this.key=config?.supabaseKey||'';
+    this.appUrl=config?.appUrl||location.origin+location.pathname;
     this.session=null;
     this.refreshing=null;
   }
@@ -19,10 +20,14 @@ export class Cloud {
     return data;
   }
   async remember(session) {
-    const next={...session,expires_at:session.expires_at||Math.floor(Date.now()/1000)+(session.expires_in||3600)};
+    const next={...session,projectUrl:this.url,expires_at:session.expires_at||Math.floor(Date.now()/1000)+(session.expires_in||3600)};
     await setSetting('session',next);this.session=next;return next;
   }
-  async restore() {this.session=await getSetting('session')||null;return this.session;}
+  async restore() {
+    const saved=await getSetting('session');
+    this.session=saved?.projectUrl===this.url?saved:null;
+    return this.session;
+  }
   async token() {
     if(!this.session)throw new Error('Sign in to synchronize.');
     if(this.session.expires_at*1000>Date.now()+60_000)return this.session.access_token;
@@ -39,18 +44,19 @@ export class Cloud {
     const data=await this.request('/auth/v1/token?grant_type=password',{method:'POST',body:{email,password},auth:true});
     return this.remember(data);
   }
-  async signUp(email,password) {return this.request('/auth/v1/signup',{method:'POST',body:{email,password},auth:true});}
+  async signUp(email,password) {return this.request(`/auth/v1/signup?redirect_to=${encodeURIComponent(this.appUrl)}`,{method:'POST',body:{email,password},auth:true});}
   async recover(email) {
-    const redirect=location.origin+location.pathname;
-    return this.request(`/auth/v1/recover?redirect_to=${encodeURIComponent(redirect)}`,{method:'POST',body:{email},auth:true});
+    return this.request(`/auth/v1/recover?redirect_to=${encodeURIComponent(this.appUrl)}`,{method:'POST',body:{email},auth:true});
   }
-  async acceptRecovery(hash) {
+  async acceptAuthReturn(hash) {
     const p=new URLSearchParams(hash.replace(/^#/,''));
-    if(p.get('type')!=='recovery'||!p.get('access_token'))return false;
+    if(p.get('error')||p.get('error_description'))throw new Error(p.get('error_description')||'This account link is invalid or expired. Request a new link.');
+    if(!['recovery','signup'].includes(p.get('type'))||!p.get('access_token'))return false;
+    if(!p.get('refresh_token'))throw new Error('This account link is incomplete. Request a new link.');
     const user=await this.request('/auth/v1/user',{token:p.get('access_token'),auth:true});
     await this.remember({access_token:p.get('access_token'),refresh_token:p.get('refresh_token'),
       expires_in:Number(p.get('expires_in'))||3600,user});
-    return true;
+    return p.get('type');
   }
   async updatePassword(password) {return this.request('/auth/v1/user',{method:'PUT',token:await this.token(),body:{password},auth:true});}
   async signOut() {
