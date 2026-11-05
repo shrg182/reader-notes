@@ -16,14 +16,21 @@ test('complete migration preserves rich source, saved editions, library entries,
 test('private durable imports are atomic, resumable, owner-bound and cannot overwrite working articles',async()=>{
  const db=new PGlite();try{
  await db.exec(`create role anon;create role authenticated;create schema auth;create table auth.users(id uuid primary key);create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;grant usage on schema public,auth to anon,authenticated;grant execute on function auth.uid() to anon,authenticated;insert into auth.users values('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb');`);
- for(const f of ['schema.sql','migration.sql'])await db.exec(await readFile(new URL('../supabase/'+f,import.meta.url),'utf8'));
+ for(const f of ['schema.sql','migration.sql','migration-categories.sql'])await db.exec(await readFile(new URL('../supabase/'+f,import.meta.url),'utf8'));
  const r={id:'11111111-1111-4111-8111-111111111111',kind:'edition',title:'Source',bookId:'11111111-1111-4111-8111-111111111111',fingerprint:'a'.repeat(64),payload:{encoding:'json-text-v1',data:JSON.stringify({html:'<ruby>字<rt>zì</rt></ruby>',overrides:{['en\0word']:{definition:'private'}}})},book:{id:'11111111-1111-4111-8111-111111111111',title:'Source',language:'zh',content:'字zì',notes:'private',deleted:false}};
  const send=()=>db.query('select public.reader_import_record($1::jsonb) as result',[JSON.stringify(r)]);
  await db.exec('set role authenticated');await db.query("select set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',false)");
  assert.equal((await send()).rows[0].result.alreadyImported,false);assert.equal(JSON.parse((await db.query('select payload from reader_import_records')).rows[0].payload.data).overrides['en\0word'].definition,'private');assert.equal((await send()).rows[0].result.alreadyImported,true);
  await db.query("select public.save_reader_document($1,'Edited','zh','new text','private',false,1)",[r.bookId]);await send();assert.equal((await db.query('select content from reader_documents')).rows[0].content,'new text');
  r.fingerprint='b'.repeat(64);await assert.rejects(send,/source changed/);await assert.rejects(()=>db.exec("update reader_import_records set title='attack'"),/permission denied/);
- await db.query("select set_config('request.jwt.claim.sub','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',false)");assert.equal((await db.query('select * from reader_import_records')).rows.length,0);
- await db.exec('reset role;set role anon');await assert.rejects(()=>db.query('select * from reader_import_records'),/permission denied/);await assert.rejects(send,/permission denied/);
+ await db.query("select set_config('request.jwt.claim.sub','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',false)");assert.equal((await db.query('select * from reader_import_records')).rows.length,0);assert.equal((await db.query('select * from reader_import_index')).rows.length,0);
+ await db.exec('reset role;set role anon');await assert.rejects(()=>db.query('select * from reader_import_records'),/permission denied/);await assert.rejects(()=>db.query('select * from reader_import_index'),/permission denied/);await assert.rejects(send,/permission denied/);
  }finally{await db.close();}
+});
+
+import {classifyImport,groupedBooks} from '../library-groups.js';
+test('Studio hierarchy groups source and saved editions by the original category and collection',()=>{
+ const books=[{id:'a',title:'Source'},{id:'b',title:'Saved'},{id:'c',title:'Chapter'},{id:'d',title:'My own article'}];
+ const groups=groupedBooks(books,[{bookId:'a',sourcePath:'sunzi/01/editor.html'},{bookId:'b',sourcePath:'sunzi/01/editor.html'},{bookId:'c',sourceKey:'jianshang:chapter_01:editor:v3'}]);
+ assert.equal(groups[0].category,'chinese_classics');assert.equal(groups[0].collection,'sunzi');assert.equal(groups[0].books.length,2);assert.equal(groups[1].collection,'jianshang');assert.equal(groups[2].category,'personal');assert.equal(classifyImport({sourceKey:'reader-articles-studio-v1:entry:abc'}).category,'writing');
 });

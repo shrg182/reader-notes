@@ -203,3 +203,14 @@ history, a dictionary library separate from personal vocabulary, correction
 layers, and file-to-document links. Add adapter-specific counts and verification
 for unsupported editor/library formats, then trial representative real material
 in the intended account before migrating larger batches.
+
+## Study Studio categorization
+
+The library uses Study Studio's original category and collection definitions,
+including aliases for Python paths and older saved-edition keys. Category and
+collection filters, counts, and collapsible sections group source and saved
+editions together. Chapter/source paths determine their order. Newly created
+articles appear under My reading materials. The private `reader_import_index`
+view exposes only metadata already owned by the caller; `security_invoker` retains
+the preservation table's row-level security. No reading content was reimported or
+overwritten to restore organization.

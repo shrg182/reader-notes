@@ -29,7 +29,8 @@
         <button id="sync-library">Sync now</button>
         <label class="trash-toggle"><input id="show-trash" type="checkbox"> Show trash</label>
       </div>
-      <div class="library-sheet"><div class="sheet-columns" aria-hidden="true"><span>Article</span><span>Language</span><span>Save status</span><span>Actions</span></div><div id="books" class="books"></div></div>
+      <div class="library-sheet"><div class="library-categories"><label>Category<select id="library-category"><option value="">All categories</option></select></label><label>Collection<select id="library-collection"><option value="">All collections</option></select></label><p id="library-count" role="status"></p></div>
+      <div class="sheet-columns" aria-hidden="true"><span>Article</span><span>Language</span><span>Save status</span><span>Actions</span></div><div id="books" class="books"></div></div>
       <p class="muted">Local mode is shared by people using this browser profile. Export a backup to keep an independent copy.</p>
     </section>
     <section id="workspace-view" hidden>

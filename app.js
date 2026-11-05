@@ -1,3 +1,4 @@
+import {groupedBooks} from './library-groups.js';
 import {CompleteMigration} from './migration-complete-ui.js';
 import {validateBook,validateBackup,makeBackup,mergeRemote,sameEdition} from './core.js';
 import * as db from './storage.js';
@@ -12,6 +13,7 @@ const $=id=>document.getElementById(id);
 const cloud=new Cloud(window.READER_CONFIG);
 let scope='local', books=[], active=null, unsaved=false, busy=false, timer, pdfUrl, editGeneration=0;
 let accountLock=null, ready=false;
+const libraryExpansion=new Map();
 const notify=(message,error=false)=>{ $('notice').textContent=message;$('notice').classList.toggle('error',error); };
 const status=message=>{$('save-status').textContent=message;};
 const tools=new ReaderTools({context:()=>({scope,book:current(),books,hasPdf:Boolean(pdfUrl)}),run,notify,openSource:openBook});
@@ -46,7 +48,7 @@ async function loadScope(){
   ready=false;
   const next=cloud.session?`account:${cloud.session.user.id}`:'local';
   await acquireLock(next);
-  scope=next;books=await db.listBooks(scope);active=null;unsaved=false;closePdf();
+  libraryExpansion.clear();scope=next;books=await db.listBooks(scope);active=null;unsaved=false;closePdf();
   sharing.reset();migration.reset();
   for(const id of ['title','language','content','notes'])$(id).value='';
   $('review-dialog').close();$('review-body').replaceChildren();$('review-actions').replaceChildren();
@@ -55,21 +57,35 @@ async function loadScope(){
   await tools.activate();await complete.activate();render();updateAccount();ready=true;document.querySelector('main').inert=false;document.querySelector('.topbar').inert=false;
 }
 function render(){
-  const query=$('search').value.toLocaleLowerCase(), trash=$('show-trash').checked;
+  const query=$('search').value.toLocaleLowerCase(),trash=$('show-trash').checked;
   const visible=books.filter(b=>b.deleted===trash&&`${b.title} ${b.content} ${b.notes}`.toLocaleLowerCase().includes(query));
-  $('books').replaceChildren();
-  for(const book of visible.sort((a,b)=>(b.updatedAt||'').localeCompare(a.updatedAt||''))){
-    const card=node('article','','book');
-    card.append(node('h2',book.title),node('p',book.language||'Language not specified'),
-      node('p',book.conflict?'Conflict needs review':book.dirty?(cloud.session?'Saved on device · waiting to sync':'Saved on this device'):'Synced'));
-    const actions=node('div','','actions');
-    if(trash)actions.append(button('Restore article',async()=>{await changeBook(book,{deleted:false});await sync();}));
-    else actions.append(button('Open article',()=>openBook(book.id)),button('Sharing',async()=>{await openBook(book.id);await sharing.openOwn();}));
-    if(book.conflict)actions.append(button('Review conflict',()=>reviewConflict(book.id)));
-    card.append(actions);$('books').append(card);
+  const allGroups=groupedBooks(books.filter(b=>b.deleted===trash),complete.meta),selectedCategory=$('library-category').value,selectedCollection=$('library-collection').value;
+  function options(select,items,all){const previous=select.value;select.replaceChildren(new Option(all,''));for(const [id,title,count] of items)select.add(new Option(`${title} (${count})`,id));select.value=items.some(x=>x[0]===previous)?previous:'';}
+  const categoryMap=new Map();for(const g of allGroups){const old=categoryMap.get(g.category);categoryMap.set(g.category,[g.category,g.categoryTitle,(old?.[2]||0)+g.books.length]);}
+  options($('library-category'),[...categoryMap.values()],'All categories');
+  options($('library-collection'),allGroups.filter(g=>!$('library-category').value||g.category===$('library-category').value).map(g=>[g.collection,g.collectionTitle,g.books.length]),'All collections');
+  const groups=groupedBooks(visible,complete.meta).filter(g=>(!$('library-category').value||g.category===$('library-category').value)&&(!$('library-collection').value||g.collection===$('library-collection').value));
+  $('books').replaceChildren();const categoryNodes=new Map();let shown=0;
+  const metaIndex=new Map(complete.meta.map(m=>[m.bookId,m]));
+  for(const group of groups){
+    let category=categoryNodes.get(group.category);
+    if(!category){category=node('details','','library-category-group');category.open=libraryExpansion.get('category:'+group.category)??true;category.ontoggle=()=>libraryExpansion.set('category:'+group.category,category.open);const total=groups.filter(g=>g.category===group.category).reduce((n,g)=>n+g.books.length,0);category.append(node('summary',`${group.categoryTitle} · ${total}`));categoryNodes.set(group.category,category);$('books').append(category);}
+    const collection=node('details','','library-collection-group');collection.open=Boolean(query||$('library-collection').value||(libraryExpansion.get('collection:'+group.collection)??groups.length===1));collection.ontoggle=()=>libraryExpansion.set('collection:'+group.collection,collection.open);collection.append(node('summary',`${group.collectionTitle} · ${group.books.length}`));category.append(collection);
+    const ordered=[...group.books].sort((a,b)=>{const x=metaIndex.get(a.id),y=metaIndex.get(b.id);return (x?.sourcePath||x?.sourceKey||a.title).localeCompare(y?.sourcePath||y?.sourceKey||b.title,undefined,{numeric:true})||a.title.localeCompare(b.title);});
+    for(const book of ordered){
+      shown++;const card=node('article','','book');
+      card.append(node('h2',book.title),node('p',book.language||'Language not specified'),node('p',book.conflict?'Conflict needs review':book.dirty?(cloud.session?'Saved on device · waiting to sync':'Saved on this device'):'Synced'));
+      const actions=node('div','','actions');
+      if(trash)actions.append(button('Restore article',async()=>{await changeBook(book,{deleted:false});await sync();}));
+      else actions.append(button('Open article',()=>openBook(book.id)),button('Sharing',async()=>{await openBook(book.id);await sharing.openOwn();}));
+      if(book.conflict)actions.append(button('Review conflict',()=>reviewConflict(book.id)));
+      card.append(actions);collection.append(card);
+    }
   }
-  if(!visible.length)$('books').append(node('div',trash?'Trash is empty.':query?'No matching articles.':'Your reading room starts here. Create an article or import a text file.','empty'));
+  $('library-count').textContent=`${shown} ${shown===1?'edition':'editions'} in ${groups.length} ${groups.length===1?'collection':'collections'}`;
+  if(!shown)$('books').append(node('div',trash?'Trash is empty.':query||selectedCategory||selectedCollection?'No matching articles.':'Your reading room starts here. Create an article or import a text file.','empty'));
 }
+
 function current(){return books.find(b=>b.id===active);}
 function paintEditor(book){
   $('title').value=book.title;$('language').value=book.language;
@@ -124,7 +140,7 @@ async function sync(){
   const next=[...merged.values()];await db.putBooks(scope,next);books=next;render();
   if(active){const book=current();paintEditor(book);if(book.deleted){active=null;$('workspace-view').hidden=true;$('library-view').hidden=false;closePdf();}}
   const conflicts=books.filter(b=>b.conflict).length;
-  if(cloud.config.migrationEnabled)await complete.refresh();
+  if(cloud.config.migrationEnabled){await complete.refresh();render();}
   notify(conflicts?`${conflicts} article(s) need conflict review. Both versions are retained.`:'Library synchronized.');
 }
 function review(title){$('review-title').textContent=title;$('review-body').replaceChildren();$('review-actions').replaceChildren();if(!$('review-dialog').open)$('review-dialog').showModal();}
@@ -184,6 +200,8 @@ async function authAction(kind){
 }
 
 $('new-book').onclick=()=>run(()=>createBook());
+$('library-category').onchange=()=>{$('library-collection').value='';render();};
+$('library-collection').onchange=render;
 $('search').oninput=render;$('show-trash').onchange=render;
 for(const id of ['title','language','content','notes'])$(id).oninput=()=>{
   editGeneration++;unsaved=true;status('Unsaved changes…');clearTimeout(timer);timer=setTimeout(()=>run(saveDraft,true),650);

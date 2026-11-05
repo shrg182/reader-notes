@@ -1,3 +1,17 @@
+# Study Studio hierarchy restored — 2026-11-05
+
+Library groups imported editions by the original category → collection → article
+hierarchy. Public labels come from Studio build_index.py; private source paths and
+legacy keys come from an owner-protected security-invoker metadata view installed
+with `supabase/migration-categories.sql`. Source/saved editions share collections.
+Filters, edition counts, chapter ordering and collapsible sections are included.
+New articles use My reading materials. No user content was modified/reimported.
+
+28 unit/SQL tests and both browser suites pass. Anonymous live metadata-view access
+returns 401. The view's isolation is also covered by the cross-account SQL test.
+
+---
+
 # Private complete migration support — 2026-11-05
 
 Version 0.5 adds `migration-library.js`, `migration-complete-ui.js`,

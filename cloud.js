@@ -90,7 +90,7 @@ export class Cloud {
     return this.request('/rest/v1/rpc/'+name,{method:'POST',body,token:await this.token()});
   }
   async importIndex(){
-    const all=[];for(let offset=0;;offset+=1000){const page=await this.sharingRead(`reader_import_records?select=id,kind,title,book_id,fingerprint&order=id.asc&limit=1000&offset=${offset}`);all.push(...page.map(r=>({...r,bookId:r.book_id})));if(page.length<1000)return all;}
+    const all=[];for(let offset=0;;offset+=1000){const page=await this.sharingRead(`reader_import_index?select=*&order=id.asc&limit=1000&offset=${offset}`);all.push(...page.map(r=>({...r,bookId:r.book_id,sourcePath:r.source_path||'',sourceKey:r.source_key||''})));if(page.length<1000)return all;}
   }
   async importPayload(id){
     const row=(await this.sharingRead(`reader_import_records?select=*&id=eq.${encodeURIComponent(id)}`))[0]||null;
