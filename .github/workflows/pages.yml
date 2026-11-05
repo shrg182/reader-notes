@@ -33,7 +33,7 @@ jobs:
       - name: Prepare public app
         run: |
           mkdir _site
-          cp index.html styles.css app.js core.js cloud.js storage.js config.js toolbar.js toolbar-model.js migration-model.js migration-ui.js sharing-model.js sharing-ui.js _site/
+          cp index.html styles.css app.js core.js cloud.js storage.js config.js toolbar.js toolbar-model.js migration-model.js migration-ui.js migration-library.js migration-complete-ui.js sharing-model.js sharing-ui.js _site/
           touch _site/.nojekyll
       - uses: actions/upload-pages-artifact@v3
         with:

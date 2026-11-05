@@ -4,5 +4,6 @@ window.READER_CONFIG = {
   supabaseKey: 'sb_publishable_ezInlE8peNqibDp4xmhtDw_uEvhUJhJ',
   appUrl: 'https://shrg182.github.io/reader-notes/',
   // Enable only after sharing.sql is installed and its policies verified.
-  sharingEnabled: true
+  sharingEnabled: true,
+  migrationEnabled: true
 };

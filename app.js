@@ -1,3 +1,4 @@
+import {CompleteMigration} from './migration-complete-ui.js';
 import {validateBook,validateBackup,makeBackup,mergeRemote,sameEdition} from './core.js';
 import * as db from './storage.js';
 import {Cloud} from './cloud.js';
@@ -16,6 +17,7 @@ const status=message=>{$('save-status').textContent=message;};
 const tools=new ReaderTools({context:()=>({scope,book:current(),books,hasPdf:Boolean(pdfUrl)}),run,notify,openSource:openBook});
 const migration=new StudioMigration({run,notify,context:()=>({scope,books,label:cloud.session?`private library (${cloud.session.user.email})`:'local library on this browser'}),onImported:async()=>{books=await db.listBooks(scope);render();}});
 const sharing=new ReaderSharing({cloud,context:()=>({scope,book:current(),books}),run,notify,saveBook:saveDraft,syncBook:sync});
+const complete=new CompleteMigration({cloud,context:()=>({scope,books,book:current()}),run,notify,onImported:async()=>{await sync();await complete.activate();}});
 function node(tag,text,className){const n=document.createElement(tag);n.textContent=text;if(className)n.className=className;return n;}
 function button(text,fn){const b=node('button',text);b.onclick=()=>run(fn);return b;}
 function download(name,data,type='application/json'){
@@ -50,7 +52,7 @@ async function loadScope(){
   $('review-dialog').close();$('review-body').replaceChildren();$('review-actions').replaceChildren();
   $('workspace-view').hidden=true;$('library-view').hidden=false;
   $('identity').textContent=cloud.session?`Private library · ${cloud.session.user.email}`:'Local library · this browser';
-  await tools.activate();render();updateAccount();ready=true;document.querySelector('main').inert=false;document.querySelector('.topbar').inert=false;
+  await tools.activate();await complete.activate();render();updateAccount();ready=true;document.querySelector('main').inert=false;document.querySelector('.topbar').inert=false;
 }
 function render(){
   const query=$('search').value.toLocaleLowerCase(), trash=$('show-trash').checked;
@@ -79,7 +81,7 @@ async function openBook(id){
   await saveDraft();closePdf();active=id;paintEditor(current());
   $('library-view').hidden=true;$('workspace-view').hidden=false;
   const asset=await db.getAsset(scope,id);if(asset)showPdf(asset.file);
-  await tools.activate();
+  await tools.activate();await complete.activate();
   $('title').focus();
 }
 function historical(book){return {...validateBook(book),savedAt:book.updatedAt||new Date().toISOString()};}
@@ -122,6 +124,7 @@ async function sync(){
   const next=[...merged.values()];await db.putBooks(scope,next);books=next;render();
   if(active){const book=current();paintEditor(book);if(book.deleted){active=null;$('workspace-view').hidden=true;$('library-view').hidden=false;closePdf();}}
   const conflicts=books.filter(b=>b.conflict).length;
+  if(cloud.config.migrationEnabled)await complete.refresh();
   notify(conflicts?`${conflicts} article(s) need conflict review. Both versions are retained.`:'Library synchronized.');
 }
 function review(title){$('review-title').textContent=title;$('review-body').replaceChildren();$('review-actions').replaceChildren();if(!$('review-dialog').open)$('review-dialog').showModal();}

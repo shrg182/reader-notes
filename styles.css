@@ -318,3 +318,5 @@ select { font: inherit; color: #202124; border: 1px solid var(--border); border-
   #sharing-dialog .actions button { flex: 1 1 130px; }
   #shared-source-text { font-size: 17px; }
 }
+
+#import-detail,#complete-migration-dialog{width:min(1100px,94vw);max-width:1100px}#complete-records{display:grid;gap:6px;max-height:40vh;overflow:auto}#complete-records button{text-align:left}.import-rich{width:100%;height:55vh;border:1px solid #dadce0;background:white}#import-detail-body pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:60vh;overflow:auto}#complete-preview{white-space:pre-wrap}#import-detail-body details{margin:12px 0}

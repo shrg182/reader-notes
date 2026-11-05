@@ -1,6 +1,7 @@
 import {getSetting,setSetting} from './storage.js';
 export class Cloud {
   constructor(config) {
+    this.config=config||{};
     this.url=(config?.supabaseUrl||'').replace(/\/$/,'');
     this.key=config?.supabaseKey||'';
     this.appUrl=config?.appUrl||location.origin+location.pathname;
@@ -88,6 +89,11 @@ export class Cloud {
     if(!this.sharingReady)throw new Error('Sharing is not configured yet.');
     return this.request('/rest/v1/rpc/'+name,{method:'POST',body,token:await this.token()});
   }
+  async importIndex(){
+    const all=[];for(let offset=0;;offset+=1000){const page=await this.sharingRead(`reader_import_records?select=id,kind,title,book_id,fingerprint&order=id.asc&limit=1000&offset=${offset}`);all.push(...page.map(r=>({...r,bookId:r.book_id})));if(page.length<1000)return all;}
+  }
+  async importPayload(id){return (await this.sharingRead(`reader_import_records?select=*&id=eq.${encodeURIComponent(id)}`))[0]||null;}
+  async importRecord(record){return this.sharingRpc('reader_import_record',{p_record:record});}
   async sharedSources(offset=0){return this.sharingRead(`reader_publications?select=*&visibility=neq.private&order=updated_at.desc&limit=50&offset=${offset}`);}
   async sourceById(id){return (await this.sharingRead(`reader_publications?select=*&id=eq.${encodeURIComponent(id)}`))[0]||null;}
   async ownPublication(id){return (await this.sharingRead(`reader_publications?select=*&document_id=eq.${encodeURIComponent(id)}&owner_id=eq.${this.session.user.id}`))[0]||null;}

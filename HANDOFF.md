@@ -1,3 +1,27 @@
+# Private complete migration support — 2026-11-05
+
+Version 0.5 adds `migration-library.js`, `migration-complete-ui.js`,
+`tools/build_studio_bundle.py` and `supabase/migration.sql`. The new schema was
+installed in the Reader Notes project with explicit user approval; anonymous
+REST access was checked and denied. All preservation records are owner-only.
+Source files and the user-confirmed October 31 archive were prepared outside Git
+in `/private/tmp/reader-notes-complete-migration.json` (owner-only permissions).
+It contains 510 editions (404 source + 106 saved/personal variants), 2,726 dictionary
+entries, 3,870 occurrences and 11 corrections. Different editions are kept separate.
+
+Rich content is sanitized and rendered in a sandboxed iframe with a deny-all CSP.
+Original study records, archive bytes, source HTML, histories and dictionary CSV
+columns are retained as private cloud records, separate from editable working text.
+Source PDF/EPUB/IndexedDB binaries absent from the export are not included. Their
+references are preserved. Ordinary text backups omit preservation data; retain
+original exports and the complete package separately.
+
+Validation: 27 unit/SQL tests; new browser integration verifies private cloud import,
+inert rich preview and idempotent reimport. Existing browser suite also passes.
+Actual user-account import verification is recorded below after deployment.
+
+---
+
 # Current live account checkpoint — 2026-11-05
 
 The dedicated Reader Notes project is `zkffujfbzbxoexohcmwk`. Both database

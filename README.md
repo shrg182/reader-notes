@@ -1,5 +1,12 @@
 # Reader Notes · 阅读札记 — foundation preview
 
+Version 0.5 adds **Migrated library** for complete private Studio packages:
+source/saved editions, inert rich previews, original notes and editing history,
+original archive downloads, and a searchable imported dictionary with personal
+corrections. These preservation records use owner-only cloud storage. See
+[MIGRATION.md](MIGRATION.md) for scope, preparation and binary-attachment limits.
+
+
 Your personal reading and editing workspace.
 
 The interface uses a Sheets-inspired worksheet style: compact green-accented

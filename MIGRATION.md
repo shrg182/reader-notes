@@ -1,3 +1,60 @@
+# Complete private library import — version 0.5
+
+The **Migrated library** button imports a prepared Studio package into the signed-in
+account. `tools/build_studio_bundle.py` builds the package outside the repository
+from the Studio source catalog, source HTML, dictionary CSVs, and confirmed exports.
+All 404 catalog articles are extracted from their editor sections without running
+source code. The original HTML files and the exact full editing archive remain
+recoverable. No private material is included in GitHub Pages or committed to Git.
+
+Source editions and saved editions become separate editable articles. This avoids
+silently choosing among conflicting versions. Nested personal-library entries are
+included. Rich HTML, ruby/pinyin, inline annotations, footnotes, original notes,
+terms, history, page maps, collection paths and unsupported study records remain
+in private preservation records, linked to their working articles. **Original
+edition & study data** opens these records. Rich previews are sanitized and shown
+in a scriptless, isolated iframe with a deny-all content policy. Original HTML is
+only offered as a download and is never executed inside Reader Notes.
+
+**Imported Studio dictionary** in the dictionary tool searches base entries with
+personal corrections layered on top. The preservation browser also exposes source
+occurrences, corrections and original CSV downloads. All original CSV columns stay
+intact. These dictionary records are separate from personal article vocabulary.
+
+Install `supabase/migration.sql` after the base schema. Its table is owner-only;
+anonymous reads and all direct writes are denied. The auth-bound RPC inserts each
+working article with its preservation record atomically. Retries skip identical
+records, differing fingerprints stop with a conflict, and existing working articles
+are never overwritten. Import progress is resumable. Imported source data stays
+private even when the user separately publishes a reviewed working-text snapshot.
+
+The preparation for the confirmed October 31 export yields 510 editions (404 source
+and 106 saved/personal editions), 2,726 dictionary entries, 3,870 source occurrences,
+and 11 corrections. The 67 MB package is outside the repository, with owner-only
+filesystem permissions. Counts include separately preserved saved variants; they
+are not counts of distinct books.
+
+## Practical limits
+
+The rich original is a preserved snapshot; new edits use Reader Notes' working
+text/notes and contribution tools. Original history is browsable/downloadable, not
+rewritten into new cloud revision timestamps. Normal text backups do not include
+preservation records; retain the complete migration package and original exports
+separately. The private cloud preserves the imported records across sign-out.
+
+PDF/EPUB binaries and browser IndexedDB attachments absent from the source export
+are not manufactured or fetched. Source HTML and all attachment references in the
+confirmed export are preserved. Separate originals must be supplied if those
+binary assets are to be transferred. No deletion from Reader Studio is performed.
+
+## Earlier trial importer
+
+The **Import from Reader Studio** workbench remains available for inventory and
+small plain-text trials. Its earlier limitations below apply to that workbench,
+not to the complete package importer.
+
+---
+
 # Moving Reader Studio material into Reader Notes
 
 ## What is available now
