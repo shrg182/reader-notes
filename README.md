@@ -128,8 +128,13 @@ resolved first. Export backups before clearing browser data.
 
 ## Configure a reader Supabase project
 
-Cloud mode is **not configured by default**. No existing app's project key is
-copied. Use a new project so this migration cannot affect the calendar.
+The published deployment uses its own Reader Notes Supabase project. Owner-only
+storage and Private / Group / Public snapshot policies are installed and verified.
+**General-user signup emails still need custom SMTP configuration**; the default
+mail service is restricted to organization team addresses. See
+[supabase/SETUP.md](supabase/SETUP.md) for the live checkpoint and remaining tests.
+
+For a separate installation, use a new project so it cannot affect the calendar:
 
 1. Create a user-owned Supabase project.
 2. Run [supabase/schema.sql](supabase/schema.sql) once in the new project's SQL

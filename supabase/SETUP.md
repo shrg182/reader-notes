@@ -45,11 +45,22 @@ Sharing adds a separate migration. After the base setup, follow `../SHARING.md`,
 apply `sharing.sql` and run `sharing-verify.sql` before enabling `sharingEnabled`.
 Existing owner-only documents and notes must not be opened to anonymous readers.
 
-The reader's URL/client key are still blank. On 2026-11-05 the available Firefox
-dashboard requested sign-in. A Supabase integration was found but was not yet
-installed/connected. Until administration access is available, provisioning and
-live security/account tests cannot be completed. Existing calendar data remains
-untouched.
+On 2026-11-05 the dedicated project `zkffujfbzbxoexohcmwk` was provisioned.
+Both migrations were installed successfully in the initially empty public schema.
+Both verification scripts executed successfully with rollback-only fixtures before
+real accounts were created. No fixture users remain. Anonymous REST checks denied
+access to documents, contribution drafts, and group invites; public snapshot
+endpoints returned empty arrays. The public publishable key is in `config.js` and
+sharing is enabled. The calendar project was not modified.
+
+Email/password signup and email confirmation are enabled; anonymous sign-in is
+disabled. Site URL and the sole allowed redirect are exactly the deployment URL.
+Custom SMTP is still disabled. Supabase's default mail service only delivers to
+organization team addresses and is rate limited; configure a verified SMTP sender
+before inviting friends. See https://supabase.com/docs/guides/auth/auth-smtp.
+Real signup/confirmation, password recovery, and simultaneous physical-device
+sync still require user testing after mail delivery is configured. No test email
+was sent and no real password was entered by the agent.
 
 Official references:
 

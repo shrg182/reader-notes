@@ -1,3 +1,22 @@
+# Current live account checkpoint — 2026-11-05
+
+The dedicated Reader Notes project is `zkffujfbzbxoexohcmwk`. Both database
+migrations and rollback verification scripts ran successfully against the new,
+empty project. Anonymous API checks deny private documents/drafts/invitations;
+only reviewed public snapshots are readable. `config.js` now contains its public
+publishable key and enables sharing. Auth confirms email, disables anonymous
+sign-in, and returns only to the exact Reader Notes deployment URL.
+
+Custom SMTP remains unconfigured. General-user signup/recovery email delivery,
+real account confirmation, and two-device sync need verification after connecting
+a mail provider. No real credentials were collected, no emails sent, and the
+calendar database was untouched. See `supabase/SETUP.md`.
+
+The historical entries below describe earlier checkpoints and are superseded by
+this checkpoint for live database/configuration status.
+
+---
+
 # Reader Notes · 阅读札记 checkpoint
 
 Updated: 2026-11-05 (America/Detroit)
