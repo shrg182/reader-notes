@@ -2,7 +2,7 @@
 export const BLOCKS = [
   {id:'navigate',label:'Navigate'}, {id:'view',label:'View'},
   {id:'layout',label:'Panes & layout'}, {id:'dictionary',label:'Dictionary & vocabulary'},
-  {id:'speech',label:'Read aloud'}, {id:'files',label:'Files & recovery'}
+  {id:'speech',label:'Read aloud'}, {id:'contributions',label:'Contributions'}, {id:'files',label:'Files & recovery'}
 ];
 export const ADAPTERS = {
   article:{label:'Editable article',textSelection:true,textView:true,speech:true},

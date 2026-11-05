@@ -25,6 +25,7 @@
         <button id="backup">Export backup</button>
         <button id="restore">Import backup</button><input id="backup-file" type="file" accept=".json,application/json" hidden>
         <button id="studio-migration">Import from Reader Studio</button>
+        <button id="shared-library">Shared library</button><button id="reading-groups">Reading groups</button>
         <button id="sync-library">Sync now</button>
         <label class="trash-toggle"><input id="show-trash" type="checkbox"> Show trash</label>
       </div>
@@ -37,7 +38,7 @@
       <div id="reader-tools" aria-label="Reading tools"></div>
       <div class="workspace-tools"><button id="attach-pdf">Open reference PDF</button><input id="pdf-file" type="file" accept=".pdf,application/pdf" hidden><button id="remove-pdf" hidden>Close PDF</button><button id="history">Version history</button><button id="export-text">Export text</button><button id="delete-book">Move to trash</button></div>
       <div class="panes">
-        <section class="edition"><h2>Editable edition <button id="selection-lookup" hidden>Look up selection</button></h2><label class="sr-only" for="content">Article text</label><textarea id="content" spellcheck="true" placeholder="Begin reading, writing, or paste an article…"></textarea><label for="notes">Reading notes</label><textarea id="notes" placeholder="Questions, observations, vocabulary…"></textarea></section>
+        <section class="edition"><h2>Editable edition <button id="selection-lookup" hidden>Look up selection</button></h2><label class="sr-only" for="content">Article text</label><textarea id="content" spellcheck="true" placeholder="Begin reading, writing, or paste an article…"></textarea><label for="notes">Private reading notes</label><textarea id="notes" placeholder="Questions, observations, vocabulary…"></textarea></section>
         <section id="reference" class="reference" hidden><div class="reference-heading"><h2>Original PDF</h2><span id="pdf-name"></span></div><p class="muted">Reference file stays on this device and is excluded from JSON backups.</p><object id="pdf-view" type="application/pdf" aria-label="Original reference PDF"><p>Your browser cannot display this PDF. <a id="pdf-download" download>Download reference PDF</a></p></object></section>
       </div>
     </section>
@@ -51,6 +52,6 @@
   </form></dialog>
   <dialog id="recovery-dialog"><form id="recovery-form"><h2>Choose a new password</h2><label>New password<input id="new-password" type="password" minlength="8" autocomplete="new-password" required></label><button class="primary">Update password</button><p id="recovery-status" role="status"></p></form></dialog>
   <dialog id="review-dialog"><div class="dialog-heading"><h2 id="review-title">Review</h2><button data-close="review-dialog" aria-label="Close review">×</button></div><div id="review-body"></div><div id="review-actions" class="actions"></div></dialog>
-  <footer>Reader Notes · 阅读札记 · Foundation preview 0.3</footer>
+  <footer>Reader Notes · 阅读札记 · Foundation preview 0.4</footer>
 </body>
 </html>

@@ -4,6 +4,8 @@ import {Cloud} from './cloud.js';
 import {ReaderTools} from './toolbar.js';
 import {validateStudy} from './toolbar-model.js';
 import {StudioMigration} from './migration-ui.js';
+import {ReaderSharing} from './sharing-ui.js';
+import {validateSharingBackup,uuid} from './sharing-model.js';
 
 const $=id=>document.getElementById(id);
 const cloud=new Cloud(window.READER_CONFIG);
@@ -12,7 +14,8 @@ let accountLock=null, ready=false;
 const notify=(message,error=false)=>{ $('notice').textContent=message;$('notice').classList.toggle('error',error); };
 const status=message=>{$('save-status').textContent=message;};
 const tools=new ReaderTools({context:()=>({scope,book:current(),books,hasPdf:Boolean(pdfUrl)}),run,notify,openSource:openBook});
-new StudioMigration({run,notify,context:()=>({scope,books,label:cloud.session?`private library (${cloud.session.user.email})`:'local library on this browser'}),onImported:async()=>{books=await db.listBooks(scope);render();}});
+const migration=new StudioMigration({run,notify,context:()=>({scope,books,label:cloud.session?`private library (${cloud.session.user.email})`:'local library on this browser'}),onImported:async()=>{books=await db.listBooks(scope);render();}});
+const sharing=new ReaderSharing({cloud,context:()=>({scope,book:current(),books}),run,notify,saveBook:saveDraft,syncBook:sync});
 function node(tag,text,className){const n=document.createElement(tag);n.textContent=text;if(className)n.className=className;return n;}
 function button(text,fn){const b=node('button',text);b.onclick=()=>run(fn);return b;}
 function download(name,data,type='application/json'){
@@ -25,7 +28,7 @@ async function run(fn,allowTyping=false){
   const controls=[...document.querySelectorAll('button,input,textarea,select')].filter(el=>!el.disabled&&(!allowTyping||el.matches('button,select,input[type=checkbox],input[type=radio]')));
   controls.forEach(el=>el.disabled=true);
   try{await fn();}catch(e){notify(e.message||'The operation failed.',true);if(active)status(unsaved?'Not saved — retry Save & sync':'Device draft retained · sync incomplete');}
-  finally{controls.forEach(el=>el.disabled=!ready);if(ready)tools.availability();document.querySelector('main').inert=false;document.querySelector('.topbar').inert=false;busy=false;}
+  finally{controls.forEach(el=>el.disabled=!ready);if(ready){tools.availability();sharing.availability();}document.querySelector('main').inert=false;document.querySelector('.topbar').inert=false;busy=false;}
 }
 async function acquireLock(nextScope){
   if(accountLock){accountLock();accountLock=null;}
@@ -42,6 +45,9 @@ async function loadScope(){
   const next=cloud.session?`account:${cloud.session.user.id}`:'local';
   await acquireLock(next);
   scope=next;books=await db.listBooks(scope);active=null;unsaved=false;closePdf();
+  sharing.reset();migration.reset();
+  for(const id of ['title','language','content','notes'])$(id).value='';
+  $('review-dialog').close();$('review-body').replaceChildren();$('review-actions').replaceChildren();
   $('workspace-view').hidden=true;$('library-view').hidden=false;
   $('identity').textContent=cloud.session?`Private library · ${cloud.session.user.email}`:'Local library · this browser';
   await tools.activate();render();updateAccount();ready=true;document.querySelector('main').inert=false;document.querySelector('.topbar').inert=false;
@@ -56,7 +62,7 @@ function render(){
       node('p',book.conflict?'Conflict needs review':book.dirty?(cloud.session?'Saved on device · waiting to sync':'Saved on this device'):'Synced'));
     const actions=node('div','','actions');
     if(trash)actions.append(button('Restore article',async()=>{await changeBook(book,{deleted:false});await sync();}));
-    else actions.append(button('Open article',()=>openBook(book.id)));
+    else actions.append(button('Open article',()=>openBook(book.id)),button('Sharing',async()=>{await openBook(book.id);await sharing.openOwn();}));
     if(book.conflict)actions.append(button('Review conflict',()=>reviewConflict(book.id)));
     card.append(actions);$('books').append(card);
   }
@@ -210,8 +216,9 @@ async function exportBackup(){
   // Carry recovery editions as separate backup records without exposing tokens.
   payload.recovery=books.map(b=>({id:b.id,history:b.history||[],conflict:b.conflict?validateBook(b.conflict):null}));
   payload.study=await tools.exportStudy(books.map(book=>book.id));
+  payload.sharing=await sharing.exportData();
   download(`reader-notes-${new Date().toISOString().slice(0,10)}.json`,JSON.stringify(payload,null,2));
-  notify('Backup exported. Includes article text, notes, trash and recovery editions; excludes reference PDFs.');
+  notify('Backup exported. Includes article text, notes, contributions, trash and recovery editions; excludes reference PDFs and migration archives.');
 }
 $('backup').onclick=()=>run(exportBackup);
 $('restore').onclick=()=>$('backup-file').click();
@@ -221,6 +228,7 @@ $('backup-file').onchange=()=>run(async()=>{
     await saveDraft();if(file.size>25_000_000)throw new Error('Backup exceeds the 25 MB import limit.');
     const data=JSON.parse(await file.text()),incoming=validateBackup(data);
     const incomingWords=validateStudy(data.study,incoming.map(book=>book.id));
+    const incomingContributions=validateSharingBackup(data.sharing,[...new Set([...incoming,...books].map(book=>book.id))]);
     const recovery=new Map();
     if(data.recovery!==undefined){
       if(!Array.isArray(data.recovery)||data.recovery.length>5000)throw new Error('Invalid recovery records.');
@@ -230,12 +238,14 @@ $('backup-file').onchange=()=>run(async()=>{
       }
     }
     const duplicates=incoming.filter(b=>books.some(old=>old.id===b.id)).length;
-    review('Import backup');$('review-body').append(node('p',`${incoming.length} articles, ${incomingWords.length} vocabulary entries, including ${incoming.filter(b=>b.deleted).length} articles in trash. ${duplicates} existing article IDs will be skipped. Destination: ${cloud.session?cloud.session.user.email:'local library'}.`),node('p','Only missing articles and their vocabulary will be added. Existing editions remain intact. Reference PDFs must be reattached.'));
+    review('Import backup');$('review-body').append(node('p',`${incoming.length} articles, ${incomingWords.length} vocabulary entries and ${incomingContributions.length} contributions, including ${incoming.filter(b=>b.deleted).length} articles in trash. ${duplicates} existing article IDs will be skipped. Destination: ${cloud.session?cloud.session.user.email:'local library'}.`),node('p','Only missing articles and their vocabulary will be added. Contributions restore as private drafts; no public/group publication is restored automatically. Existing editions remain intact. Reference PDFs must be reattached.'));
     $('review-actions').append(button('Import missing articles',async()=>{
       const additions=incoming.filter(b=>!books.some(old=>old.id===b.id)).map(b=>({...b,revision:0,dirty:true,history:recovery.get(b.id)||[],updatedAt:new Date().toISOString()}));
       const existingWords=await db.getSetting(`vocabulary:${scope}`)||[],ids=new Set(existingWords.map(word=>word.id));
       const vocabulary=[...existingWords,...incomingWords.filter(word=>additions.some(book=>book.id===word.bookId)&&!ids.has(word.id))];
-      await db.putBooks(scope,additions,vocabulary);books.push(...additions);await tools.activate();render();$('review-dialog').close();notify(`Imported ${additions.length} articles on this device. Use Sync now to upload account articles. Vocabulary remains on this device and in backups.`);
+      const existingContributions=await db.getSetting(`contributions:${scope}`)||[],noteIds=new Set(existingContributions.flatMap(draft=>[draft.id,draft.originId].filter(Boolean)));
+      const newContributions=incomingContributions.filter(draft=>!noteIds.has(draft.originId||draft.id)).map(draft=>({...draft,id:crypto.randomUUID(),originId:draft.originId||draft.id,visibility:'private',groupIds:[],dirty:true,cloudRevision:0}));
+      await db.putBooks(scope,additions,vocabulary,[...existingContributions,...newContributions]);books.push(...additions);await tools.activate();render();$('review-dialog').close();notify(`Imported ${additions.length} articles and ${newContributions.length} private contribution drafts on this device. No publication was performed.`);
     }));
   }finally{$('backup-file').value='';}
 });
@@ -253,8 +263,8 @@ $('sign-out').onclick=()=>run(async()=>{
   }
   async function finish(){const oldScope=scope;tools.stop();await cloud.signOut();await db.clearAccount(oldScope);await loadScope();$('account-dialog').close();notify('Signed out on this device.');}
   const study=await tools.exportStudy(books.map(book=>book.id));
-  if(study.vocabulary.length){
-    review('Back up personal vocabulary');$('review-body').append(node('p','Vocabulary is saved on this device and has no cloud copy yet. Export a backup before signing out clears this account’s device cache.'));
+  if(study.vocabulary.length||await sharing.countDrafts()){
+    review('Back up personal study data');$('review-body').append(node('p','Vocabulary and contribution drafts may have device-only changes. Export a backup before signing out clears this account’s device cache. Migration source files must be retained separately.'));
     $('review-actions').append(button('Export backup & sign out',async()=>{await exportBackup();await finish();$('review-dialog').close();}));return;
   }
   await finish();
@@ -279,4 +289,9 @@ await run(async()=>{
   if(cloud.session&&navigator.onLine)await sync();
   if(linkError)notify(linkError.message,true);
   else if(authReturn==='signup')notify('Email confirmed. You are signed in to your private library.');
+  const sharedId=new URLSearchParams(location.hash.replace(/^#/,'' )).get('read');
+  if(sharedId&&uuid(sharedId)){
+    if(cloud.sharingReady)await sharing.openSource(sharedId);
+    else notify('This reading link needs the sharing service to be configured. Your local library is available.');
+  }
 });

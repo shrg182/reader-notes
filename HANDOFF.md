@@ -129,6 +129,63 @@ A local report was saved as
 permissions for user review; it is outside the repository. It contains inventory
 metadata, not raw source records. No actual material was imported into the app.
 
+## Independent audiences and contribution layers — preview 0.4
+
+The user approved Private / Selected groups / Public access for books and for
+each personally added contribution, including revisions to public books. Added
+`sharing-model.js`, `sharing-ui.js`, a Contributions block, per-library-item Sharing
+action, Shared library, reading-group controls and `#read=<publication UUID>` links.
+Types cover pinyin, inline notes, annotations, footnotes, reading notes, highlight
+explanations and revised editions. Rendering is currently a passage-linked layer
+panel rather than rich inline/ruby markup. Alternative editions do not replace
+the shared source. The old reading-notes field is explicitly labelled Private.
+
+Source publications snapshot only title/language/text. Private contribution
+drafts and shared snapshots are separate records. Saving a draft, even with a
+requested public audience, cannot publish it. Explicit reviewed publication or
+withdrawal changes only that contribution. Backend revisions, group membership,
+source audience caps and Unicode/CRLF quote anchors are checked. Source trash
+withdraws publication; restoration does not republish. Deleting a source/account
+does not cascade into another reader's independently owned private notes.
+
+`supabase/sharing.sql` is an additive migration after the base schema, with RLS,
+revoked direct writes, auth-bound RPCs, owner-only version history, hashed seven-day
+group invitation codes and group join/removal/revocation. No invitation messages
+are sent automatically. `supabase/sharing-verify.sql` is a rollback-only test.
+PGlite is a locked development dependency; `npm ci` is now required for tests
+and CI. No database engine or test dependency ships in the static site artifact.
+
+Contribution drafts are account/local-scoped settings. JSON backups include them,
+but exclude active publication grants. Restore gives missing contributions fresh
+IDs/provenance and private audiences; repeat imports skip existing provenance.
+Account sign-out offers a study-data backup before clearing local contribution
+caches. Private conflicts preserve both versions and allow keeping the device
+edition as a separate private draft.
+
+Live sharing is NOT activated. `config.js` retains blank reader URL/key and
+`sharingEnabled: false`. The Supabase connection was never confirmed. Do not
+copy the calendar connection or claim deployed policies were verified. Follow
+`SHARING.md`, configure the reader project, apply schema/sharing migrations, run
+the test SQL and real-account checks, then enable the flag. Dictionaries, original
+file sharing, standalone orphan-note UI and shared-reader toolbar parity remain
+future work; legacy material stays private by default.
+
+Validation adds pure sharing tests and executes both SQL migrations plus the
+verification script in isolated PGlite PostgreSQL with fixture Auth roles. This
+tests actual SQL/RLS semantics, not a live Supabase JWT gateway. Chrome mocks
+cover group organizer controls, public source with private pinyin, independent
+public footnotes/revisions, private updates that do not replace public snapshots,
+withdrawal, anonymous links and private backup restoration. No real project,
+group, account, invitation or publication was created during development.
+
+Release verification: all 25 unit/SQL tests passed, including the rollback-only
+sharing verification script running in PGlite. The full Chrome suite passed prior
+reading/migration/auth scenarios and new public/private/group UI flows, private
+backup restore defaults, anonymous alternative-edition viewing, independent
+withdrawal and sign-out study backup/DOM cleanup. Desktop/public-reader and phone
+sharing screenshots were visually inspected. Actual Supabase activation remains
+pending; `sharingEnabled` is intentionally false in the deployed configuration.
+
 Next: rich document/annotation and dictionary-library models, additional legacy
 adapters and source-file matching before full migration. Supabase setup remains
 pending its confirmed connection; do not claim account/dictionary cloud sync.

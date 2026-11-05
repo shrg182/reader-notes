@@ -90,6 +90,22 @@ a separate anchoring model.
 
 ## Saving and synchronization
 
+### Independent audiences (preview 0.4)
+
+Books and individual contributions have separate Private / Selected groups /
+Public audiences. Private working records remain separate from deliberately
+published snapshots. Shared sources exclude the private notes field; each note,
+pinyin mark, annotation, footnote or revised edition is independently owned.
+Readers see only contributions permitted by both their own audience and the
+source audience. Private drafts never inherit public visibility from a book.
+
+The current implementation includes reviewed text publication, private drafts,
+passage-linked contribution layers, alternative editions and organizer/member
+groups. Live activation is gated on configured Supabase and verified policies.
+See `SHARING.md`; it is not enabled by deploying the frontend alone. Dictionary
+visibility/scope/specialty/difficulty remain separate future dimensions rather
+than being collapsed into a single category.
+
 1. Persist a draft in IndexedDB before showing device-save success.
 2. Maintain an account-specific queue; synchronize on explicit Save & sync,
    reconnection, and periodic retry while the app is open.

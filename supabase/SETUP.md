@@ -41,6 +41,10 @@ may be subject to account limits or billing; do not accept a paid upgrade.
 
 ## Current checkpoint
 
+Sharing adds a separate migration. After the base setup, follow `../SHARING.md`,
+apply `sharing.sql` and run `sharing-verify.sql` before enabling `sharingEnabled`.
+Existing owner-only documents and notes must not be opened to anonymous readers.
+
 The reader's URL/client key are still blank. On 2026-11-05 the available Firefox
 dashboard requested sign-in. A Supabase integration was found but was not yet
 installed/connected. Until administration access is available, provisioning and

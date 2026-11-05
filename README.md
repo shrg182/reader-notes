@@ -8,8 +8,8 @@ layouts keep readable text and touch-sized controls.
 
 ## Modular reading tools
 
-The workspace has six shared tool blocks: Navigate, View, Panes & layout,
-Dictionary & vocabulary, Read aloud, and Files & recovery. Use **Customize tools**
+The workspace has seven shared tool blocks: Navigate, View, Panes & layout,
+Dictionary & vocabulary, Read aloud, Contributions, and Files & recovery. Use **Customize tools**
 to show/hide blocks or choose Reading, Study, or Editing presets. Each header
 expands/collapses its tools and offers Pin/Unpin. Unpinned blocks collapse when
 switching articles; pinned blocks retain their configured expansion. Reading
@@ -45,6 +45,20 @@ missing articles, avoiding changes to existing articles and vocabulary.
 Repository: <https://github.com/shrg182/reader-notes>
 
 Website: <https://shrg182.github.io/reader-notes/>
+
+## Reading-item and contribution audiences
+
+Use an item's **Sharing** action or the workspace's **Contributions** block.
+Books and each contribution have separate Private / Selected groups / Public
+choices. Saving keeps a working draft private; publication requires a separate
+preview and action. Public text snapshots exclude separate private notes,
+vocabulary, source files and migration archives. A revised edition is a separate
+contribution layer, not a replacement for the source.
+
+Private local contribution drafts work now. Live publication, shared reading and
+group management are gated by `sharingEnabled` and a configured Supabase project
+with the new policies installed. They are **not activated on the deployed site**
+yet. See [SHARING.md](SHARING.md) for behavior, limits and setup steps.
 
 ## Reader Studio migration
 
@@ -144,7 +158,7 @@ Server history can currently be inspected through the owner-protected
 
 ## Backups and limits
 
-Backups include current articles, notes, trash, and retained recovery editions.
+Backups include current articles, notes, personal contribution drafts, trash, and retained recovery editions.
 They exclude authentication tokens, account identity, and PDF bytes. Imports
 validate every record before writing, are transactional, and add missing IDs
 only. Recovery editions are restored as device history, not as queued cloud
@@ -158,6 +172,7 @@ the import size limit; large-library backup packaging is future work.
 ## Verification
 
 ```sh
+npm ci
 npm test
 PLAYWRIGHT_PATH=/path/to/playwright npm run test:browser
 ```
@@ -166,6 +181,9 @@ Browser tests need Playwright and installed Google Chrome. They serve this
 workspace on an ephemeral loopback port, use isolated temporary browser data,
 and mock Supabase requests. They do not contact a production account or prove
 deployed SQL security. The SQL verification is separate.
+
+PGlite is a development-only dependency for isolated PostgreSQL permission tests.
+No database engine or dependency files are deployed with the static app.
 
 ## Next work
 

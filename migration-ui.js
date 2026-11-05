@@ -32,6 +32,11 @@ export class StudioMigration {
     $('migration-stage').onclick=()=>this.run(()=>this.commit(false));
     $('migration-import').onclick=()=>this.run(()=>this.commit(true));
   }
+  reset(){
+    $('migration-dialog').close();this.plan=null;this.selected.clear();this.scope=undefined;this.offset=0;
+    $('migration-files').value='';$('migration-preview').hidden=true;$('migration-status').textContent='';
+    for(const id of ['migration-sources','migration-records','migration-summary','migration-saved'])$(id).replaceChildren();
+  }
   async open(){
     const scope=this.context().scope;
     if(this.scope!==scope){this.plan=null;this.selected.clear();$('migration-preview').hidden=true;$('migration-files').value='';$('migration-status').textContent='';}

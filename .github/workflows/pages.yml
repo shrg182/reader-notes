@@ -26,12 +26,14 @@ jobs:
         with:
           node-version: '24'
       - name: Verify foundation
-        run: npm test
+        run: |
+          npm ci
+          npm test
       - uses: actions/configure-pages@v5
       - name: Prepare public app
         run: |
           mkdir _site
-          cp index.html styles.css app.js core.js cloud.js storage.js config.js toolbar.js toolbar-model.js migration-model.js migration-ui.js _site/
+          cp index.html styles.css app.js core.js cloud.js storage.js config.js toolbar.js toolbar-model.js migration-model.js migration-ui.js sharing-model.js sharing-ui.js _site/
           touch _site/.nojekyll
       - uses: actions/upload-pages-artifact@v3
         with:

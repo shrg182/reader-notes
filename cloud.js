@@ -4,6 +4,7 @@ export class Cloud {
     this.url=(config?.supabaseUrl||'').replace(/\/$/,'');
     this.key=config?.supabaseKey||'';
     this.appUrl=config?.appUrl||location.origin+location.pathname;
+    this.sharingReady=this.configured&&config?.sharingEnabled===true;
     this.session=null;
     this.refreshing=null;
   }
@@ -79,4 +80,26 @@ export class Cloud {
       p_notes:book.notes,p_deleted:book.deleted,p_revision:book.revision
     }});
   }
+  async sharingRead(path){
+    if(!this.sharingReady)throw new Error('Sharing is not configured yet. Private drafts remain on this device.');
+    return this.request('/rest/v1/'+path,{token:this.session?await this.token():undefined});
+  }
+  async sharingRpc(name,body){
+    if(!this.sharingReady)throw new Error('Sharing is not configured yet.');
+    return this.request('/rest/v1/rpc/'+name,{method:'POST',body,token:await this.token()});
+  }
+  async sharedSources(offset=0){return this.sharingRead(`reader_publications?select=*&visibility=neq.private&order=updated_at.desc&limit=50&offset=${offset}`);}
+  async sourceById(id){return (await this.sharingRead(`reader_publications?select=*&id=eq.${encodeURIComponent(id)}`))[0]||null;}
+  async ownPublication(id){return (await this.sharingRead(`reader_publications?select=*&document_id=eq.${encodeURIComponent(id)}&owner_id=eq.${this.session.user.id}`))[0]||null;}
+  async sharedContributions(id){return this.sharingRead(`reader_shared_contributions?select=*&source_id=eq.${encodeURIComponent(id)}&visibility=neq.private&order=updated_at.desc&limit=1000`);}
+  async myContributions(){
+    const all=[];
+    for(let offset=0;;offset+=1000){const page=await this.sharingRead(`reader_contribution_drafts?select=*&order=id.asc&limit=1000&offset=${offset}`);all.push(...page);if(page.length<1000)return all;}
+  }
+  async groups(){return this.sharingRead('reader_groups?select=*&order=created_at.desc');}
+  async groupMembers(){return this.sharingRead('reader_group_members?select=*');}
+  async saveContribution(draft){return this.sharingRpc('reader_save_contribution',{
+    p_id:draft.id,p_source:draft.sourceId,p_kind:draft.kind,p_body:draft.body,p_quote:draft.quote,p_start:draft.anchorStart,p_end:draft.anchorEnd,
+    p_source_revision:draft.sourceRevision,p_visibility:draft.visibility,p_groups:draft.groupIds,p_revision:draft.cloudRevision||0
+  });}
 }

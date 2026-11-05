@@ -39,6 +39,21 @@ let browser;
   assert.equal(await page.locator('#notes').evaluate(el=>document.activeElement===el),true,'Autosave must preserve typing focus');
   await page.locator('#save').click();
   await page.waitForFunction(()=>document.querySelector('#save-status').textContent==='Saved on this device');
+  await page.locator('[data-block=contributions] .block-toggle').click();
+  await page.locator('#item-sharing').click();
+  await page.waitForFunction(()=>document.querySelector('#sharing-dialog').open&&!document.querySelector('#save-contribution').disabled);
+  await page.locator('#contribution-kind').selectOption('pinyin');
+  await page.locator('#shared-source-text').evaluate(area=>{const start=area.value.indexOf('原文');area.setSelectionRange(start,start+2);});
+  await page.locator('#capture-passage').click();await page.locator('#contribution-body').fill('yuán wén');
+  await page.locator('#contribution-audience').selectOption('public');
+  await page.locator('#save-contribution').click();
+  await page.waitForFunction(()=>document.querySelector('#sharing-status').textContent.includes('Private working draft saved on this device'));
+  assert.match(await page.locator('#contribution-list').textContent(),/Private working draft — not published/);
+  await page.locator('#review-contribution').click();
+  await page.locator('#publish-dialog').waitFor({state:'visible'});
+  assert.equal(await page.getByRole('button',{name:'Publish this contribution',exact:true}).isDisabled(),true,'Unconfigured sharing never claims live publication');
+  await page.locator('#publish-dialog .dialog-heading button').click();await page.locator('#close-sharing').click();
+  assert.equal(await page.locator('#notes').inputValue(),'First observation','Contribution visibility never changes legacy private notes');
   // Selection lookup opens the dictionary independently of toolbar collapse.
   await page.locator('#content').evaluate(el=>{el.setSelectionRange(0,8);el.dispatchEvent(new Event('select'));});
   await page.locator('#selection-lookup').click();
@@ -81,7 +96,7 @@ let browser;
   await page.locator('#back').click();
   const downloaded=page.waitForEvent('download');await page.locator('#backup').click();
   const backupPath=await (await downloaded).path();const backup=JSON.parse(await fs.readFile(backupPath,'utf8'));
-  assert.equal(backup.books.length,1);assert.equal(backup.recovery.length,1);assert.equal(backup.study.vocabulary[0].word,'Original');
+  assert.equal(backup.books.length,1);assert.equal(backup.recovery.length,1);assert.equal(backup.study.vocabulary[0].word,'Original');assert.equal(backup.sharing.contributions[0].kind,'pinyin');
   await page.getByRole('button',{name:'Open article',exact:true}).click();
   await page.locator('#delete-book').click();
   await page.locator('#show-trash').check();
@@ -105,6 +120,11 @@ let browser;
   assert.equal(await restorePage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
   await fs.mkdir(path.join(root,'test-results'),{recursive:true});
   await restorePage.screenshot({path:path.join(root,'test-results/mobile.png'),fullPage:true});
+  await restorePage.locator('[data-block=contributions] .block-toggle').click();await restorePage.locator('#item-sharing').click();
+  await restorePage.waitForFunction(()=>document.querySelector('#sharing-dialog').open);
+  assert.match(await restorePage.locator('#contribution-list').textContent(),/Audience on next publication: private/,'Backup restoration never restores a public audience automatically');
+  await restorePage.screenshot({path:path.join(root,'test-results/contributions-mobile.png'),fullPage:true});
+  await restorePage.locator('#close-sharing').click();
   await restoreContext.close();
   // A second tab must not edit an already-open library in this browser profile.
   const other=await local.newPage();await other.goto(origin);
@@ -194,12 +214,14 @@ let browser;
   await migrationContext.close();
   console.log('PASS migration preview, inert legacy HTML, version-1 storage upgrade, byte-exact staging, trial import, duplicate/conflict protection and transaction rollback');
 
-  const documents=new Map();let offline=false,signupRedirect,recoveryRedirect;
+  const documents=new Map(),publications=new Map(),contributionDrafts=new Map(),contributionSnapshots=new Map(),groups=[],members=[];
+  let offline=false,signupRedirect,recoveryRedirect;
   const accountA='a1000000-0000-4000-8000-000000000001',accountB='b1000000-0000-4000-8000-000000000002';
   const cloudContext=await browser.newContext();
   cloudContext.setDefaultTimeout(15000);
-  await cloudContext.route('**/config.js',route=>route.fulfill({contentType:'text/javascript',body:'window.READER_CONFIG={supabaseUrl:"https://reader.test",supabaseKey:"test-public"}'}));
-  await cloudContext.route('https://reader.test/**',async route=>{
+  const mockConfig=route=>route.fulfill({contentType:'text/javascript',body:'window.READER_CONFIG={supabaseUrl:"https://reader.test",supabaseKey:"test-public",sharingEnabled:true}'});
+  await cloudContext.route('**/config.js',mockConfig);
+  const mockCloud=async route=>{
     if(offline){await route.abort('internetdisconnected');return;}
     const req=route.request(),url=new URL(req.url());let body={};
     try{body=req.postDataJSON()||{};}catch{}
@@ -220,8 +242,34 @@ let browser;
       const record={id:body.p_id,user_id:owner,title:body.p_title,language:body.p_language,content:body.p_content,notes:body.p_notes,deleted:body.p_deleted,revision:(old?.revision||0)+1,updated_at:new Date().toISOString()};
       documents.set(key,record);return respond({conflict:false,document:record});
     }
+    if(url.pathname==='/rest/v1/reader_groups')return respond(groups.filter(group=>members.some(member=>member.group_id===group.id&&member.user_id===owner)));
+    if(url.pathname==='/rest/v1/reader_group_members')return respond(members.filter(member=>members.some(m=>m.group_id===member.group_id&&m.user_id===owner)));
+    if(url.pathname==='/rest/v1/rpc/reader_create_group'){
+      const group={id:'d1000000-0000-4000-8000-000000000004',owner_id:owner,name:body.p_name,created_at:new Date().toISOString()};groups.push(group);members.push({group_id:group.id,user_id:owner,display_name:body.p_display_name,role:'organizer'});return respond(group);
+    }
+    if(url.pathname==='/rest/v1/rpc/reader_invite_group')return respond({code:'fixture-invitation-code',expires_at:'2026-11-12T12:00:00Z'});
+    if(url.pathname==='/rest/v1/rpc/reader_revoke_invites')return respond(null);
+    const allowed=row=>row.owner_id===owner||row.visibility==='public'||row.visibility==='group'&&members.some(member=>member.user_id===owner&&row.group_ids.includes(member.group_id));
+    if(url.pathname==='/rest/v1/reader_publications')return respond([...publications.values()].filter(row=>allowed(row)&&(!url.searchParams.has('id')||'eq.'+row.id===url.searchParams.get('id'))&&(!url.searchParams.has('document_id')||'eq.'+row.document_id===url.searchParams.get('document_id'))&&(!url.searchParams.has('owner_id')||'eq.'+row.owner_id===url.searchParams.get('owner_id'))&&(!url.searchParams.has('visibility')||row.visibility!=='private')));
+    if(url.pathname==='/rest/v1/reader_contribution_drafts')return respond([...contributionDrafts.values()].filter(row=>row.owner_id===owner));
+    if(url.pathname==='/rest/v1/reader_shared_contributions')return respond([...contributionSnapshots.values()].filter(row=>allowed(row)&&(!url.searchParams.has('source_id')||'eq.'+row.source_id===url.searchParams.get('source_id'))&&(!url.searchParams.has('owner_id')||'eq.'+row.owner_id===url.searchParams.get('owner_id'))&&(!url.searchParams.has('visibility')||row.visibility!=='private')));
+    if(url.pathname==='/rest/v1/rpc/reader_publish_book'){
+      const source=documents.get(owner+':'+body.p_document),old=[...publications.values()].find(row=>row.document_id===body.p_document&&row.owner_id===owner);
+      if((old?.revision||0)!==body.p_revision)return respond({conflict:true,publication:old});
+      const record={id:old?.id||'e1000000-0000-4000-8000-000000000005',owner_id:owner,document_id:source.id,title:source.title,language:source.language,content:source.content,visibility:body.p_visibility,group_ids:body.p_groups,source_revision:source.revision,revision:(old?.revision||0)+1,updated_at:new Date().toISOString()};
+      publications.set(record.id,record);return respond({conflict:false,publication:record});
+    }
+    if(url.pathname==='/rest/v1/rpc/reader_save_contribution'){
+      const old=contributionDrafts.get(body.p_id);if((old?.revision||0)!==body.p_revision)return respond({conflict:true,draft:old});
+      const record={id:body.p_id,owner_id:owner,source_id:body.p_source,kind:body.p_kind,body:body.p_body,quote:body.p_quote,anchor_start:body.p_start,anchor_end:body.p_end,source_revision:body.p_source_revision,requested_visibility:body.p_visibility,group_ids:body.p_groups,revision:(old?.revision||0)+1};contributionDrafts.set(record.id,record);return respond({conflict:false,draft:record});
+    }
+    if(url.pathname==='/rest/v1/rpc/reader_publish_contribution'){
+      const draft=contributionDrafts.get(body.p_id),old=contributionSnapshots.get(body.p_id);if((old?.revision||0)!==body.p_revision)return respond({conflict:true,publication:old});
+      assert.equal(draft.revision,body.p_draft_revision);const record={...draft,visibility:draft.requested_visibility,revision:(old?.revision||0)+1};delete record.requested_visibility;contributionSnapshots.set(record.id,record);return respond({conflict:false,publication:record});
+    }
     return route.fulfill({status:404,body:'{}'});
-  });
+  };
+  await cloudContext.route('https://reader.test/**',mockCloud);
   const cp=await cloudContext.newPage();cp.on('pageerror',e=>errors.push(e.message));await cp.goto(origin);
   await cp.locator('#account-button').click();await cp.locator('#email').fill('a@example.com');await cp.locator('#password').fill('password123');
   await cp.locator('#sign-up').click();
@@ -262,6 +310,7 @@ let browser;
   assert.equal(documents.get(key).notes,'Offline draft survives');
   await cp.locator('#account-button').click();await cp.locator('#sign-out').click();
   await cp.waitForFunction(()=>document.querySelector('#identity').textContent==='Local library · this browser');
+  assert.equal(await cp.locator('#notes').inputValue(),'','Signing out clears the previous reader’s editor fields');
   assert.equal(await cp.getByRole('button',{name:'Open article',exact:true}).count(),0);
   await signin('b@example.com');
   assert.equal(await cp.getByRole('button',{name:'Open article',exact:true}).count(),0);
@@ -286,6 +335,53 @@ let browser;
   assert.equal(new URL(cp.url()).hash,'');
   console.log('PASS mocked account isolation, revision conflicts, offline reload/retry and remembered sessions');
   console.log('PASS signup/reset redirects, confirmation callbacks, password recovery and expired-link handling');
+  await cp.locator('#reading-groups').click();await cp.locator('#group-name').fill('Reading friends');await cp.locator('#group-alias').fill('Reader A');
+  await cp.locator('#create-reading-group button').click();await cp.waitForFunction(()=>document.querySelector('#groups-status').textContent.includes('Group created'));
+  await cp.getByRole('button',{name:'Create invitation code',exact:true}).click();await cp.getByRole('textbox',{name:'Group invitation code',exact:true}).waitFor();
+  assert.equal(await cp.getByRole('textbox',{name:'Group invitation code',exact:true}).inputValue(),'fixture-invitation-code');
+  await cp.getByRole('button',{name:'Revoke invitation codes',exact:true}).click();await cp.waitForFunction(()=>document.querySelector('#groups-status').textContent.includes('were revoked'));
+  await cp.locator('#groups-dialog .dialog-heading button').click();
+  await cp.getByRole('button',{name:'Open article',exact:true}).click();
+  await cp.locator('[data-block=contributions] .block-toggle').click();await cp.locator('#item-sharing').click();
+  await cp.waitForFunction(()=>document.querySelector('#sharing-dialog').open&&!document.querySelector('#book-audience').disabled);
+  await cp.locator('#book-audience').selectOption('public');await cp.locator('#review-book-publication').click();
+  assert.equal((await cp.locator('#publish-dialog').textContent()).includes('Offline draft survives'),false,'Personal reading notes are excluded from publication preview');
+  await cp.getByRole('button',{name:'Publish reviewed edition',exact:true}).click();await cp.waitForFunction(()=>document.querySelector('#sharing-status').textContent.includes('reviewed edition was published'));
+  assert.equal(publications.size,1);assert.equal(JSON.stringify([...publications.values()]).includes('Offline draft survives'),false);
+  await cp.locator('#contribution-kind').selectOption('pinyin');await cp.locator('#contribution-body').fill('PRIVATE PINYIN — wǒ de');await cp.locator('#save-contribution').click();
+  await cp.waitForFunction(()=>document.querySelector('#sharing-status').textContent.includes('saved to your account'));
+  assert.equal(contributionDrafts.size,1);assert.equal(contributionSnapshots.size,0,'Saving private drafts cannot publish');
+  await cp.locator('#new-contribution').click();await cp.locator('#contribution-kind').selectOption('footnote');await cp.locator('#contribution-body').fill('Public explanation');await cp.locator('#contribution-audience').selectOption('public');await cp.locator('#review-contribution').click();
+  await cp.getByRole('button',{name:'Publish this contribution',exact:true}).click();await cp.waitForFunction(()=>document.querySelector('#sharing-status').textContent.includes('Only this reviewed contribution was published'));
+  const footnote=[...contributionSnapshots.values()][0];
+  await cp.locator('#new-contribution').click();await cp.locator('#contribution-kind').selectOption('revision');await cp.locator('#revision-from-source').click();await cp.locator('#contribution-body').fill('My alternative published edition');await cp.locator('#contribution-audience').selectOption('public');await cp.locator('#review-contribution').click();await cp.getByRole('button',{name:'Publish this contribution',exact:true}).click();
+  await cp.waitForFunction(()=>!document.querySelector('#publish-dialog').open);
+  const snapshot=[...publications.values()][0];assert.equal(snapshot.content,'My conflicting edition');
+  const anonymous=await browser.newContext();anonymous.setDefaultTimeout(15000);await anonymous.route('**/config.js',mockConfig);await anonymous.route('https://reader.test/**',mockCloud);
+  const ap=await anonymous.newPage();ap.on('pageerror',e=>errors.push(e.message));await ap.goto(origin+'/#read='+snapshot.id);await ap.locator('#sharing-dialog').waitFor({state:'visible'});
+  assert.equal(await ap.locator('#shared-source-text').inputValue(),'My conflicting edition');
+  assert.match(await ap.locator('#contribution-list').textContent(),/Public explanation/);assert.equal((await ap.locator('#contribution-list').textContent()).includes('PRIVATE PINYIN'),false);
+  await ap.getByRole('button',{name:'View alternative edition',exact:true}).click();assert.equal(await ap.locator('#shared-source-text').inputValue(),'My alternative published edition');
+  await ap.locator('#restore-source').click();assert.equal(await ap.locator('#shared-source-text').inputValue(),'My conflicting edition');
+  const footnoteCard=cp.locator('#contribution-list .contribution-card').filter({hasText:'Audience on next publication: public'}).filter({hasText:'Public explanation'});
+  await footnoteCard.getByRole('button',{name:'Edit private draft',exact:true}).click();await cp.locator('#contribution-body').fill('PRIVATE NEW FOOTNOTE DRAFT');await cp.locator('#contribution-audience').selectOption('private');await cp.locator('#save-contribution').click();
+  await cp.waitForFunction(()=>document.querySelector('#sharing-status').textContent.includes('saved to your account'));
+  await ap.reload();await ap.locator('#sharing-dialog').waitFor({state:'visible'});
+  assert.match(await ap.locator('#contribution-list').textContent(),/Public explanation/);assert.equal((await ap.locator('#contribution-list').textContent()).includes('PRIVATE NEW FOOTNOTE'),false,'A newer private draft never replaces its public snapshot');
+  await cp.locator('#review-contribution').click();await cp.getByRole('button',{name:'Keep private / withdraw shared copy',exact:true}).click();await cp.waitForFunction(()=>!document.querySelector('#publish-dialog').open);
+  assert.equal(contributionSnapshots.get(footnote.id).visibility,'private');
+  await ap.reload();await ap.locator('#sharing-dialog').waitFor({state:'visible'});assert.equal((await ap.locator('#contribution-list').textContent()).includes('Public explanation'),false);
+  assert.equal((await ap.locator('#contribution-list').textContent()).includes('My alternative published edition'),true,'Withdrawing one contribution does not withdraw another');
+  await ap.screenshot({path:path.join(root,'test-results/shared-edition.png'),fullPage:true});await anonymous.close();
+  await cp.locator('#close-sharing').click();await cp.locator('#account-button').click();await cp.locator('#sign-out').click();
+  await cp.waitForFunction(()=>document.querySelector('#review-dialog').open);
+  const studyDownload=cp.waitForEvent('download');await cp.getByRole('button',{name:'Export backup & sign out',exact:true}).click();
+  const studyBackup=JSON.parse(await fs.readFile(await (await studyDownload).path(),'utf8'));
+  assert.equal(studyBackup.sharing.contributions.length,3);assert.equal(studyBackup.sharing.contributions.some(draft=>'publication' in draft),false);
+  await cp.waitForFunction(()=>document.querySelector('#identity').textContent==='Local library · this browser');
+  assert.equal((await cp.locator('#sharing-dialog').textContent()).includes('PRIVATE PINYIN'),false,'Account switching clears private contribution DOM');
+  assert.equal(await cp.locator('#contribution-body').inputValue(),'');assert.equal(await cp.locator('#notes').inputValue(),'');
+  console.log('PASS group organizer controls, reviewed source publication, independent private/public contributions, alternative editions and withdrawal');
   assert.deepEqual(errors,[]);
 })().then(async()=>{await browser?.close();server.close();}).catch(async e=>{
   console.error(e);

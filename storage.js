@@ -32,15 +32,16 @@ export async function listBooks(scope) {
   return all.filter(b=>b.scope===scope);
 }
 export const putBook=(scope,book)=>transaction('books','readwrite',s=>s.put({...book,key:`${scope}:${book.id}`,scope}));
-export async function putBooks(scope,books,study) {
-  if(study===undefined)return transaction('books','readwrite',s=>{
+export async function putBooks(scope,books,study,contributions) {
+  if(study===undefined&&contributions===undefined)return transaction('books','readwrite',s=>{
     for (const b of books) s.put({...b,key:`${scope}:${b.id}`,scope});
   });
   const db=await openStore();
   return new Promise((resolve,reject)=>{
     const tx=db.transaction(['books','settings'],'readwrite');
     for(const book of books)tx.objectStore('books').put({...book,key:`${scope}:${book.id}`,scope});
-    tx.objectStore('settings').put(study,`vocabulary:${scope}`);
+    if(study!==undefined)tx.objectStore('settings').put(study,`vocabulary:${scope}`);
+    if(contributions!==undefined)tx.objectStore('settings').put(contributions,`contributions:${scope}`);
     tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);
   });
 }
@@ -65,6 +66,7 @@ export async function clearAccount(scope) {
   return new Promise((resolve,reject)=>{
     const tx=db.transaction(['books','assets','settings','migration_files','migration_batches'],'readwrite');
     tx.objectStore('settings').delete(`vocabulary:${scope}`);
+    tx.objectStore('settings').delete(`contributions:${scope}`);
     for(const device of ['phone','desktop'])tx.objectStore('settings').delete(`tools:${scope}:${device}`);
     for(const name of ['books','assets','migration_files','migration_batches']) {
       const request=tx.objectStore(name).openCursor();

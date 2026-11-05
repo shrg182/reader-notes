@@ -284,3 +284,37 @@ select { font: inherit; color: #202124; border: 1px solid var(--border); border-
   #migration-dialog .actions button { flex: 1 1 160px; }
   .migration-check input, .migration-record-heading input { min-width: 20px; height: 20px; }
 }
+
+/* Independent source and contribution audiences. Shared markup stays plain text. */
+#sharing-dialog, #shared-library-dialog, #groups-dialog { width: min(1000px, calc(100% - 24px)); }
+#publish-dialog { width: min(800px, calc(100% - 24px)); }
+#sharing-dialog > .dialog-heading, #groups-dialog > .dialog-heading, #publish-dialog > .dialog-heading { position: sticky; top: -1px; z-index: 2; background: #fff; border-bottom: 1px solid var(--border); padding: 8px 0; }
+#sharing-dialog section { border-top: 1px solid var(--border); margin-top: 20px; padding-top: 14px; }
+#sharing-dialog h3, #groups-dialog h3, #shared-library-dialog h3 { font-size: 17px; font-weight: 500; margin: 0 0 12px; }
+#sharing-status, #groups-status, #shared-library-status { padding: 10px 12px; background: #edf2fa; font-size: 13px; }
+#sharing-status:empty, #groups-status:empty, #shared-library-status:empty { display: none; }
+#shared-source-text { min-height: 250px; max-height: 55vh; margin-bottom: 8px; }
+#contribution-body { min-height: 140px; }
+#contribution-quote { min-height: 70px; font-size: 15px; background: #f8f9fa; }
+#sharing-dialog label, #groups-dialog label { margin: 10px 0; }
+#sharing-dialog select { display: block; margin-top: 4px; }
+.audience-groups { display: flex; gap: 12px; flex-wrap: wrap; }
+.audience-groups label { display: flex; align-items: center; gap: 6px; }
+.audience-groups input { width: auto; margin: 0; accent-color: var(--green); }
+.contribution-card { border: 1px solid var(--border); border-radius: 5px; padding: 14px; margin-top: 12px; overflow-wrap: anywhere; }
+.contribution-card p { font-size: 13px; }
+.contribution-card pre { max-height: 220px; }
+.contribution-card button { margin: 4px 6px 0 0; }
+.contribution-card blockquote, #publish-dialog blockquote { margin: 10px 0; padding: 8px 12px; border-left: 3px solid #bccbdc; background: #f8f9fa; white-space: pre-wrap; }
+.audience-badge { color: #137333; background: var(--green-soft); padding: 5px 8px; display: inline-block; border-radius: 4px; }
+.layer-heading { display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+#group-invitation { margin-top: 14px; padding: 10px; background: #fef7e0; font-size: 13px; }
+#group-invitation:empty { display: none; }
+#groups-dialog form { border-bottom: 1px solid var(--border); padding: 14px 0; }
+@media(max-width:760px) {
+  #sharing-dialog, #groups-dialog, #publish-dialog, #shared-library-dialog { padding: 16px; }
+  #sharing-dialog select, #groups-dialog input { font-size: 16px; }
+  .audience-groups input { width: 20px; height: 20px; }
+  #sharing-dialog .actions button { flex: 1 1 130px; }
+  #shared-source-text { font-size: 17px; }
+}
