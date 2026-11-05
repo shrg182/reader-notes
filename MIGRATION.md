@@ -34,6 +34,21 @@ and 11 corrections. The 67 MB package is outside the repository, with owner-only
 filesystem permissions. Counts include separately preserved saved variants; they
 are not counts of distinct books.
 
+## Completed import
+
+On 2026-11-05 the confirmed October 31 archive and current 404-item source catalog
+were imported into the signed-in private Reader Notes account: 558 preservation
+records and 510 editable editions. The library synchronized after reload. A saved
+Chinese edition's rich pinyin/inline notes, its separate source edition, and an
+English dictionary lookup were checked in the published app. Anonymous access to
+preservation records was denied after import. A private package and report remain
+outside Git tracking in `private-migrations/`; Reader Studio originals are intact.
+
+Open **Library** for articles. Use **Migrated library** for preserved records and
+original downloads. Within an article, **Files & recovery → Original edition &
+study data** opens rich snapshots, notes, terms and imported history. The dictionary
+block contains **Imported Studio dictionary**.
+
 ## Practical limits
 
 The rich original is a preserved snapshot; new edits use Reader Notes' working

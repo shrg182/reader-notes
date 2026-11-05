@@ -69,3 +69,11 @@ Official references:
 - https://supabase.com/docs/guides/auth/redirect-urls
 - https://supabase.com/docs/guides/auth/passwords
 - https://supabase.com/docs/guides/database/postgres/row-level-security
+
+## Private migration storage
+
+`migration.sql` was installed on 2026-11-05 with user approval. Its owner-only
+records preserve the completed Studio import (558 records, 510 editions); live
+anonymous access was denied. User signup/email confirmation succeeded, as shown
+in the supplied screenshot. Actual password recovery and physical-device sync
+remain unverified. Personal Gmail provider improvements remain deferred.

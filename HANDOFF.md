@@ -18,7 +18,18 @@ original exports and the complete package separately.
 
 Validation: 27 unit/SQL tests; new browser integration verifies private cloud import,
 inert rich preview and idempotent reimport. Existing browser suite also passes.
-Actual user-account import verification is recorded below after deployment.
+Actual import completed in the signed-in private account through the published
+app: 558 private preservation records and 510 editable editions. Success UI reported
+all dictionary counts; a reload synchronized the library. Both source and saved
+Sunzi editions appeared separately; rich pinyin/inline notes and history controls
+were inspected, and an imported English dictionary query returned a match.
+Anonymous import-record access remained HTTP 401 after upload. The full library
+was left open with the temporary search cleared.
+
+Private durable package and fingerprint/report are in ignored `private-migrations/`
+with owner-only permissions. Original exports/source files remain untouched.
+No private package, original article body, source export or SMTP secret was added
+to the repository. Public app deployment `5b18dc2` succeeded.
 
 ---
 
