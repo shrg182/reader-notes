@@ -92,7 +92,7 @@ function render(){
   for(const group of groups){
     let category=categoryNodes.get(group.category);
     if(!category){category=node('details','','library-category-group');category.open=libraryExpansion.get('category:'+group.category)??true;category.ontoggle=()=>libraryExpansion.set('category:'+group.category,category.open);const total=groups.filter(g=>g.category===group.category).reduce((n,g)=>n+articleRows(g.books,complete.meta).length,0);const heading=node('summary');heading.append(node('strong',group.categoryTitle),node('small',TAXONOMY.CATEGORIES[group.category]?.[1]||''),node('span',`${total} articles`,'category-count'));category.append(heading);categoryNodes.set(group.category,category);$('books').append(category);}
-    const collection=node('details','','library-collection-group');collection.open=Boolean(query||$('library-collection').value||(libraryExpansion.get('collection:'+group.collection)??groups.length===1));collection.ontoggle=()=>libraryExpansion.set('collection:'+group.collection,collection.open);collection.append(node('summary',`${group.collectionTitle} · ${articleRows(group.books,complete.meta).length} articles`));category.append(collection);
+    const collection=node('details','','library-collection-group');collection.open=Boolean(query||$('library-collection').value||(libraryExpansion.get('collection:'+group.collection)??groups.length===1));collection.ontoggle=()=>libraryExpansion.set('collection:'+group.collection,collection.open);collection.append(node('summary',group.collectionTitle));category.append(collection);
     const ordered=articleRows(group.books,complete.meta);
     for(const row of ordered){
       const book=row.book;shown++;const card=node('article','','book');

@@ -357,3 +357,7 @@ The modular Reader Notes toolbar is always available above the embedded Study St
 
 ### Clickable catalog titles 0.8.1 — 2026-11-06
 Article titles are now keyboard-accessible buttons styled as text, opening the saved working edition by default. The duplicate Open editor action, generated ordinal numbers and per-row Editions menu are removed. Book summaries retain native expand/collapse and keyboard behavior but hide disclosure markers; spacing, type size, open-state shading and focus outlines distinguish hierarchy. Exact repeated collection prefixes are shortened for display only; full stored titles, chapter numbers and search remain intact. All independent working/source editions and preserved snapshots remain accessible through Files & recovery → Original editions & study data. No document migration, deletion or permission changes.
+
+
+### Book title counts removed 0.8.2 — 2026-11-06
+Collection/book headings now display their titles without article-count suffixes. The library total, category summaries, filter counts and account statistics remain available. No stored data changes.

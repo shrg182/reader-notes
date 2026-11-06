@@ -1,4 +1,4 @@
-const CACHE='reader-notes-shell-0.8.1';
+const CACHE='reader-notes-shell-0.8.2';
 const FILES=['./', 'index.html', 'styles.css', 'app.js', 'core.js', 'cloud.js', 'storage.js', 'config.js', 'toolbar.js', 'toolbar-model.js', 'sharing-model.js', 'sharing-ui.js', 'migration-model.js', 'migration-ui.js', 'migration-library.js', 'migration-complete-ui.js', 'library-taxonomy.js', 'library-groups.js', 'rich-model.js', 'rich-editor.js', 'manifest.webmanifest', 'reader-icon.svg', 'studio/theme.css', 'studio/editor.css', 'studio/bridge.js', 'studio/editor.html', 'studio/host.css', 'studio/editor.js', 'studio/workspace.js', 'studio/history.js'];
 const allowed=new Set(FILES.map(p=>new URL(p,self.registration.scope).href));
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(FILES)).then(()=>self.skipWaiting())));
