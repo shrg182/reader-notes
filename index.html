@@ -11,25 +11,23 @@
 <link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#188038"></head>
 <body>
   <header class="topbar" inert>
-    <a href="#library" class="brand"><span class="sheet-mark" aria-hidden="true"><span></span></span><span>Reader Notes · 阅读札记 <small>Your personal reading and editing workspace.</small></span></a>
-    <button id="account-button">Account</button>
+    <a href="#library" class="brand"><span class="sheet-mark" aria-hidden="true"><span></span></span><span>Reader Notes</span></a>
+    <div class="account-shortcuts"><button id="sync-indicator" type="button" aria-label="Synchronization details">Local</button><button id="account-button">My Account</button></div>
   </header>
   <main inert>
     <div id="notice" role="status" aria-live="polite"></div>
     <section id="library-view">
-      <div class="heading"><div><p class="eyebrow">READER NOTES</p><h1>Library</h1><p id="identity">Local library · this browser</p></div>
-        <button id="new-book" class="primary">+ New article</button></div>
+      <h1 class="sr-only">Library</h1>
       <div class="library-tools">
         <label class="search">Search library<input id="search" type="search" placeholder="Search articles, chapters or collections…"></label>
-        <details class="library-tools-menu"><summary>Library tools</summary><div class="library-menu-items"><button id="import-text">Import text</button><input id="text-file" type="file" accept=".txt,.md,text/plain,text/markdown" hidden>
-        <button id="backup">Export backup</button>
-        <button id="restore">Import backup</button><input id="backup-file" type="file" accept=".json,application/json" hidden>
-        <button id="studio-migration">Import from Reader Studio</button>
-        </div></details><button id="shared-library">Shared library</button><button id="reading-groups">Reading groups</button>
-        <button id="sync-library">Sync now</button>
-        <label class="trash-toggle"><input id="show-trash" type="checkbox"> Show trash</label>
+        <button id="new-book" class="primary">+ New article</button>
+        <details id="library-filters" class="library-filters"><summary id="filter-label">Filters</summary><div class="library-categories"><label>Category<select id="library-category"><option value="">All categories</option></select></label><label>Collection<select id="library-collection"><option value="">All collections</option></select></label><label class="trash-toggle"><input id="show-trash" type="checkbox"> Show trash</label></div></details>
+        <details class="library-tools-menu"><summary>More</summary><div class="library-menu-items"><button id="import-text">Import text</button><input id="text-file" type="file" accept=".txt,.md,text/plain,text/markdown" hidden>
+        <button id="studio-migration">Import from Reader Studio</button><button id="shared-library">Shared library</button>
+        </div></details>
       </div>
-      <div class="library-sheet"><div class="library-categories"><label>Category<select id="library-category"><option value="">All categories</option></select></label><label>Collection<select id="library-collection"><option value="">All collections</option></select></label><p id="library-count" role="status"></p></div>
+      <p id="library-count" class="catalog-count" role="status"></p>
+      <div class="library-sheet">
       <div class="sheet-columns" aria-hidden="true"><span>Article</span><span>Reading activity</span><span>Editing &amp; save status</span><span>Actions</span></div><div id="books" class="books"></div></div>
       <p class="muted">Local mode is shared by people using this browser profile. Export a backup to keep an independent copy.</p>
     </section>
@@ -45,14 +43,18 @@
     </section>
   </main>
   <dialog id="account-dialog"><form id="account-form">
-    <div class="dialog-heading"><h2>Account</h2><button type="button" data-close="account-dialog" aria-label="Close account">×</button></div>
-    <p id="account-description"></p>
+    <div class="dialog-heading"><h2>My Account</h2><button type="button" data-close="account-dialog" aria-label="Close account">×</button></div>
+    <h3>Profile &amp; security</h3><p id="account-description"></p><p id="identity" class="muted"></p>
     <div id="credentials"><label>Email<input id="email" type="email" autocomplete="email" required></label><label>Password<input id="password" type="password" autocomplete="current-password" minlength="8" required></label><div class="actions"><button id="sign-in" class="primary" type="submit">Sign in</button><button id="sign-up" type="button">Create account</button><button id="forgot" type="button">Reset password</button></div></div>
-    <div id="signed-in" hidden><button id="reauthenticate" type="button">Sign in again</button> <button id="sign-out" type="button">Sign out</button></div>
+    <div id="signed-in" hidden><button id="account-password" type="button">Reset password</button> <button id="reauthenticate" type="button">Sign in again</button> <button id="sign-out" type="button">Sign out</button></div>
     <p id="account-status" role="status"></p>
-  </form></dialog>
+  </form>
+    <section class="account-section"><h3>Reading preferences</h3><button id="account-preferences" type="button">Default reading tools</button><p class="muted">Set visible tools for future reading. Article and file-format overrides take priority. Preferences are stored separately for phone and desktop on this device.</p></section>
+    <section class="account-section"><h3>Groups &amp; publications</h3><div class="actions"><button id="reading-groups" type="button">Reading groups &amp; invitations</button><button id="account-publications" type="button">My publications</button></div><p class="muted">Manage your groups and review your public or group editions. Share the current article from its Sharing controls.</p></section>
+    <section class="account-section"><h3>Data &amp; synchronization</h3><p id="account-sync-status">Local library stays on this browser.</p><p id="account-library-count" class="muted"></p><div class="actions"><button id="sync-library" type="button">Sync now</button><button id="backup" type="button">Export backup</button><button id="restore" type="button">Import backup</button><input id="backup-file" type="file" accept=".json,application/json" hidden></div><p class="muted">Backups retain private working editions and study data. Attached PDFs stay on this device and are excluded from JSON backups.</p></section>
+  </dialog>
   <dialog id="recovery-dialog"><form id="recovery-form"><h2>Choose a new password</h2><label>New password<input id="new-password" type="password" minlength="8" autocomplete="new-password" required></label><button class="primary">Update password</button><p id="recovery-status" role="status"></p></form></dialog>
   <dialog id="review-dialog"><div class="dialog-heading"><h2 id="review-title">Review</h2><button data-close="review-dialog" aria-label="Close review">×</button></div><div id="review-body"></div><div id="review-actions" class="actions"></div></dialog>
-  <footer>Reader Notes · 阅读札记 · Study Studio catalog & editor 0.7.1</footer>
+  <footer>Reader Notes · 阅读札记 · Study Studio catalog & editor 0.8</footer>
 </body>
 </html>

@@ -347,3 +347,9 @@ Large exports with history may exceed the current 25 MB import limit.
 
 ### Restored toolbar 0.7.1 — 2026-11-06
 The modular Reader Notes toolbar is always available above the embedded Study Studio toolbar. It retains existing per-article visibility, expansion and pin preferences. Its Reading mode control collapses the modular blocks while the original Studio toolbar remains available. Expanded blocks scroll within a bounded panel to preserve editor space on phones. Article details retains the separate metadata/reference controls. Parent search, article-start, text size, spacing and layout controls now forward through the existing nonce-bound iframe bridge; rich selections feed the dictionary and read-aloud blocks. No database change. Verified with rich browser desktop/mobile screenshots, search, text size, collapse/restore and existing rich editing/offline checks.
+
+
+### Compact header / account organization 0.8 — 2026-11-06
+- Library uses compact brand + My Account + synchronization status, search/New/Filters/More, and article count. Email and detailed storage counts moved to Account. Routine sync banner suppressed visually; errors stay visible.
+- Account groups existing auth/security, default tools, groups/invitations, owner-filtered publication overview, backup/import and synchronization controls. Publication overview is read-only until existing explicit sharing actions are used. No new SQL.
+- Existing control IDs/handlers retained; tests follow moved controls. Files & recovery has an Account shortcut for the rich editor. Last successful library synchronization stored per account on this device and cleared on signout.

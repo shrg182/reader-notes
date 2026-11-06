@@ -121,7 +121,7 @@ export class ReaderTools {
     $('save-tool-settings').onclick=()=>this.run(()=>this.saveSettings(false));
     $('inherit-tools').onclick=()=>this.run(()=>this.saveSettings(true));
   }
-  openSettings(){this.settingsDraft=structuredClone(this.preferences);$('preference-scope').value='book';this.settingsOptions();$('tools-dialog').showModal();}
+  openSettings(scope='book'){this.settingsDraft=structuredClone(scope==='defaults'?effectivePreferences({defaults:this.profile.defaults}):this.preferences);$('preference-scope').querySelector('[value=book]').disabled=!this.context().book;$('preference-scope').value=scope;this.settingsOptions();$('tools-dialog').showModal();}
   settingsOptions(){
     $('block-options').replaceChildren();
     for(const block of BLOCKS){const label=text('label',block.label),checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.checked=this.settingsDraft[block.id].visible;checkbox.onchange=()=>{this.settingsDraft[block.id].visible=checkbox.checked;};label.prepend(checkbox);$('block-options').append(label);}

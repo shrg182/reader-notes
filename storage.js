@@ -70,6 +70,7 @@ export async function clearAccount(scope) {
     tx.objectStore('settings').delete(`contributions:${scope}`);
     tx.objectStore('settings').delete(`imports:${scope}`);
     tx.objectStore('settings').delete(`reading:${scope}`);
+    tx.objectStore('settings').delete(`last-sync:${scope}`);
     tx.objectStore('settings').delete(`catalog-activity:${scope}`);
     const imported=tx.objectStore('settings').openCursor();imported.onsuccess=()=>{const c=imported.result;if(c){if(String(c.key).startsWith(`import-record:${scope}:`))c.delete();c.continue();}};
     for(const device of ['phone','desktop'])tx.objectStore('settings').delete(`tools:${scope}:${device}`);
