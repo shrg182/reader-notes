@@ -1,5 +1,12 @@
 # Reader Notes · 阅读札记 — foundation preview
 
+Version 0.6 adapts Study Studio's rich editor: familiar toolbar and notes sidebar,
+editable ruby/pinyin and footnotes, annotations, media, undo/redo, dictionaries,
+read-aloud, exports and offline reopening. Structured editions use the existing
+private account/revision boundary. See [STUDIO_EDITOR.md](STUDIO_EDITOR.md) for
+behavior, security, verification and format-specific limits.
+
+
 Version 0.5 adds **Migrated library** for complete private Studio packages:
 source/saved editions, inert rich previews, original notes and editing history,
 original archive downloads, and a searchable imported dictionary with personal

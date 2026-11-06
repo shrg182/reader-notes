@@ -1,4 +1,5 @@
-import {groupedBooks} from './library-groups.js';
+import {RichEditor} from './rich-editor.js';
+import {classifyImport,groupedBooks} from './library-groups.js';
 import {CompleteMigration} from './migration-complete-ui.js';
 import {validateBook,validateBackup,makeBackup,mergeRemote,sameEdition} from './core.js';
 import * as db from './storage.js';
@@ -12,7 +13,8 @@ import {validateSharingBackup,uuid} from './sharing-model.js';
 const $=id=>document.getElementById(id);
 const cloud=new Cloud(window.READER_CONFIG);
 let scope='local', books=[], active=null, unsaved=false, busy=false, timer, pdfUrl, editGeneration=0;
-let accountLock=null, ready=false;
+let accountLock=null, ready=false,installPrompt=null;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e;});
 const libraryExpansion=new Map();
 const notify=(message,error=false)=>{ $('notice').textContent=message;$('notice').classList.toggle('error',error); };
 const status=message=>{$('save-status').textContent=message;};
@@ -20,6 +22,11 @@ const tools=new ReaderTools({context:()=>({scope,book:current(),books,hasPdf:Boo
 const migration=new StudioMigration({run,notify,context:()=>({scope,books,label:cloud.session?`private library (${cloud.session.user.email})`:'local library on this browser'}),onImported:async()=>{books=await db.listBooks(scope);render();}});
 const sharing=new ReaderSharing({cloud,context:()=>({scope,book:current(),books}),run,notify,saveBook:saveDraft,syncBook:sync});
 const complete=new CompleteMigration({cloud,context:()=>({scope,books,book:current()}),run,notify,onImported:async()=>{await sync();await complete.activate();}});
+const rich=new RichEditor({context:()=>({scope,books,book:current()}),notify,
+  onDirty:()=>{unsaved=true;editGeneration++;status('Unsaved rich edits…');},
+  onState:values=>{if(!current())return;if(rich.value!==current().richState||values.content!==$('content').value){$('content').value=values.content;unsaved=true;editGeneration++;clearTimeout(timer);timer=setTimeout(()=>run(saveDraft,true),800);}},
+  onAction:async m=>{if(m.action==='sync')return run(sync);if(m.action==='library'||m.action==='collection')return run(async()=>{const group=classifyImport(complete.meta.find(x=>x.bookId===active));if(!await returnToLibrary())return;if(m.action==='collection'){$('library-category').value=group.category;render();$('library-collection').value=group.collection;render();}});if(m.action==='offline'){review('Offline reading');$('review-body').append(node('p','Previously opened working editions and their saved media remain on this device. Connect once to prepare an imported original. Offline edits stay queued for account synchronization; export backups before clearing browser data.'));return;}if(m.action==='install'){if(installPrompt){await installPrompt.prompt();installPrompt=null;}else{review('Install Reader Notes');$('review-body').append(node('p','Use your browser’s Install app command, or Add to Home Screen on your phone. The app must first be opened online to prepare offline reading.'));}return;}if(m.action==='account')$('account-button').click();if(m.action==='sharing')return run(async()=>{await saveDraft();await sharing.openOwn();});if(m.action==='backup')return run(exportBackup);if(m.action==='source'&&/^https?:\/\//.test(m.url||'')){review('Original source');const a=node('a','Open original source');a.href=m.url;a.target='_blank';a.rel='noopener noreferrer';$('review-body').append(a);return;}if(m.action==='dictionary'||m.action==='settings'){document.body.classList.add('studio-extras-open');if(m.action==='dictionary'){await tools.revealDictionary();$('import-dictionary-query').focus();}}}
+});
 function node(tag,text,className){const n=document.createElement(tag);n.textContent=text;if(className)n.className=className;return n;}
 function button(text,fn){const b=node('button',text);b.onclick=()=>run(fn);return b;}
 function download(name,data,type='application/json'){
@@ -45,7 +52,7 @@ async function acquireLock(nextScope){
   });
 }
 async function loadScope(){
-  ready=false;
+  ready=false;rich.close();
   const next=cloud.session?`account:${cloud.session.user.id}`:'local';
   await acquireLock(next);
   libraryExpansion.clear();scope=next;books=await db.listBooks(scope);active=null;unsaved=false;closePdf();
@@ -92,13 +99,15 @@ function paintEditor(book){
   $('content').value=book.content;$('notes').value=book.notes;
   unsaved=false;status(book.conflict?'Conflict needs review':book.dirty?(cloud.session?'Saved on this device · waiting to sync':'Saved on this device'):'Synced');
 }
+async function hydrateRich(book){const meta=complete.meta.find(x=>x.bookId===book.id);const record=meta&&!book.richState?await complete.record(meta):null;const correctionMeta=complete.meta.find(x=>x.kind==='corrections');let dictionaryOverrides;try{dictionaryOverrides=correctionMeta?(await complete.record(correctionMeta)).payload.overrides:undefined;}catch{}await rich.open(book,{...record?.payload,...(dictionaryOverrides?{dictionaryOverrides}:{})});}
 async function openBook(id){
   if(!tools.confirmLeave())return;
-  await saveDraft();closePdf();active=id;paintEditor(current());
+  await saveDraft();rich.close();closePdf();active=id;paintEditor(current());
   $('library-view').hidden=true;$('workspace-view').hidden=false;
   const asset=await db.getAsset(scope,id);if(asset)showPdf(asset.file);
   await tools.activate();await complete.activate();
-  $('title').focus();
+  if(window.READER_CONFIG.richEditorEnabled)await hydrateRich(current());
+  else $('title').focus();
 }
 function historical(book){return {...validateBook(book),savedAt:book.updatedAt||new Date().toISOString()};}
 async function changeBook(book,changes){
@@ -107,13 +116,14 @@ async function changeBook(book,changes){
 }
 async function saveDraft(){
   clearTimeout(timer);
+  if(active&&rich.loaded)await rich.flush();
   if(!active||!unsaved)return;
   const generation=editGeneration;
   const values={title:$('title').value.trim()||'Untitled article',language:$('language').value,
-    content:$('content').value,notes:$('notes').value};
+    content:$('content').value,notes:$('notes').value,...(rich.loaded&&rich.value?{richState:rich.value}:{})};
   const book=current();validateBook({...book,...values});
   if(!sameEdition(book,{...book,...values}))await changeBook(book,values);
-  unsaved=generation!==editGeneration;
+  unsaved=generation!==editGeneration;rich.saved(cloud.session?'已保存到设备 · 云端同步由账户管理':'已保存到本机');
   status(unsaved?'Unsaved changes…':cloud.session?'Saved on this device · waiting to sync':'Saved on this device');
 }
 async function createBook(title='Untitled article',content=''){
@@ -122,7 +132,7 @@ async function createBook(title='Untitled article',content=''){
   validateBook(book);await db.putBook(scope,book);books.push(book);await openBook(book.id);
 }
 async function sync(){
-  await saveDraft();
+  await saveDraft();const syncGeneration=editGeneration;
   if(!cloud.session){render();return;}
   status('Syncing…');
   // Persist each result before the next request. Interrupted runs retain the rest.
@@ -138,9 +148,10 @@ async function sync(){
   const merged=new Map(books.map(b=>[b.id,b]));
   for(const record of remote){validateBook(record);merged.set(record.id,mergeRemote(merged.get(record.id),record));}
   const next=[...merged.values()];await db.putBooks(scope,next);books=next;render();
-  if(active){const book=current();paintEditor(book);if(book.deleted){active=null;$('workspace-view').hidden=true;$('library-view').hidden=false;closePdf();}}
+  if(active){const book=current();if(!rich.loaded||editGeneration===syncGeneration){paintEditor(book);if(rich.loaded&&(book.richState??null)!==rich.value)await hydrateRich(book);}if(book.deleted){active=null;rich.close();$('workspace-view').hidden=true;$('library-view').hidden=false;closePdf();}}
   const conflicts=books.filter(b=>b.conflict).length;
   if(cloud.config.migrationEnabled){await complete.refresh();render();}
+  rich.saved(conflicts?'同步冲突：两个版本均已保留':'已保存并同步');
   notify(conflicts?`${conflicts} article(s) need conflict review. Both versions are retained.`:'Library synchronized.');
 }
 function review(title){$('review-title').textContent=title;$('review-body').replaceChildren();$('review-actions').replaceChildren();if(!$('review-dialog').open)$('review-dialog').showModal();}
@@ -155,7 +166,7 @@ async function reviewConflict(id){
     const next={...book,...validateBook(useLocal?book:remote),revision:remote.revision,dirty:useLocal,conflict:null,
       history:[historical(book),historical(remote),...(book.history||[])].slice(0,30),updatedAt:new Date().toISOString()};
     await db.putBook(scope,next);books=books.map(b=>b.id===id?next:b);$('review-dialog').close();
-    if(active===id)paintEditor(next);render();await sync();
+    if(active===id){paintEditor(next);if(window.READER_CONFIG.richEditorEnabled)await hydrateRich(next);}render();await sync();
   }
   $('review-actions').append(button('Use cloud version',()=>choose(false)),button('Keep device version & sync',()=>choose(true)));
 }
@@ -166,7 +177,7 @@ async function showHistory(){
   for(const version of book.history||[]){
     const row=node('div','','history-row');row.append(node('p',new Date(version.savedAt).toLocaleString()),node('h3',version.title),node('pre',version.content+'\n\nReading notes:\n'+version.notes));
     row.append(button('Restore this edition',async()=>{
-      const next=await changeBook(current(),{...validateBook(version),id:book.id});paintEditor(next);$('review-dialog').close();await sync();
+      const next=await changeBook(current(),{...validateBook(version),id:book.id,richState:version.richState??null});paintEditor(next);if(window.READER_CONFIG.richEditorEnabled)await hydrateRich(next);$('review-dialog').close();await sync();
     }));$('review-body').append(row);
   }
 }
@@ -208,7 +219,8 @@ for(const id of ['title','language','content','notes'])$(id).oninput=()=>{
 };
 $('save').onclick=()=>run(sync);
 $('sync-library').onclick=()=>run(async()=>{if(!cloud.session){notify('Sign in to synchronize. Local articles remain on this device.');return;}await sync();});
-$('back').onclick=()=>run(async()=>{if(!tools.confirmLeave())return;await saveDraft();tools.navigateAway();active=null;closePdf();$('workspace-view').hidden=true;$('library-view').hidden=false;render();});
+async function returnToLibrary(){if(!tools.confirmLeave())return false;await saveDraft();rich.close();tools.navigateAway();active=null;closePdf();$('workspace-view').hidden=true;$('library-view').hidden=false;render();return true;}
+$('back').onclick=()=>run(returnToLibrary);
 $('import-text').onclick=()=>$('text-file').click();
 $('text-file').onchange=()=>run(async()=>{
   const file=$('text-file').files[0];if(!file)return;
@@ -220,7 +232,7 @@ $('text-file').onchange=()=>run(async()=>{
 $('attach-pdf').onclick=()=>$('pdf-file').click();
 $('pdf-file').onchange=()=>run(async()=>{
   const file=$('pdf-file').files[0];if(!file)return;
-  try{if(file.size>25_000_000)throw new Error('Choose a PDF smaller than 25 MB.');
+  try{if(file.size>128_000_000)throw new Error('Choose a PDF smaller than 25 MB.');
     if(new TextDecoder().decode(await file.slice(0,5).arrayBuffer())!=='%PDF-')throw new Error('This file does not have a PDF header.');
     await db.putAsset(scope,active,file);showPdf(file);notify('Reference PDF saved on this device. It is not uploaded or included in JSON backups.');
   }finally{$('pdf-file').value='';}
@@ -246,7 +258,7 @@ $('restore').onclick=()=>$('backup-file').click();
 $('backup-file').onchange=()=>run(async()=>{
   const file=$('backup-file').files[0];if(!file)return;
   try{
-    await saveDraft();if(file.size>25_000_000)throw new Error('Backup exceeds the 25 MB import limit.');
+    await saveDraft();if(file.size>128_000_000)throw new Error('Backup exceeds the 128 MB import limit.');
     const data=JSON.parse(await file.text()),incoming=validateBackup(data);
     const incomingWords=validateStudy(data.study,incoming.map(book=>book.id));
     const incomingContributions=validateSharingBackup(data.sharing,[...new Set([...incoming,...books].map(book=>book.id))]);
@@ -316,3 +328,5 @@ await run(async()=>{
     else notify('This reading link needs the sharing service to be configured. Your local library is available.');
   }
 });
+
+if(window.READER_CONFIG.offlineEnabled!==false&&'serviceWorker' in navigator&&location.protocol!=='file:')navigator.serviceWorker.register('./service-worker.js').catch(()=>{});

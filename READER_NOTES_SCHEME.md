@@ -224,3 +224,11 @@ security verification, and real-device testing remain release work.
 - https://supabase.com/docs/guides/database/postgres/row-level-security
 - https://supabase.com/docs/guides/storage/security/access-control
 - https://supabase.com/docs/guides/auth/passwords
+
+## Accepted interface direction — version 0.6
+
+The user selected Study Studio's interface and editor as the Reader Notes
+foundation. The shared editor/workspace implementation is adapted directly and
+connected to account storage. Rich annotation state is retained per document with
+revision history; the plaintext projection remains a separate sharing boundary.
+Details and remaining format-specific limits are in `STUDIO_EDITOR.md`.

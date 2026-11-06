@@ -1,3 +1,4 @@
+import {validateBook} from './core.js';
 import {getSetting,setSetting} from './storage.js';
 export class Cloud {
   constructor(config) {
@@ -76,6 +77,7 @@ export class Cloud {
     }
   }
   async save(book) {
+    if(book.richState)return this.request('/rest/v1/rpc/save_reader_rich_document',{method:'POST',token:await this.token(),body:{p_document:validateBook(book),p_revision:book.revision}});
     return this.request('/rest/v1/rpc/save_reader_document',{method:'POST',token:await this.token(),body:{
       p_id:book.id,p_title:book.title,p_language:book.language,p_content:book.content,
       p_notes:book.notes,p_deleted:book.deleted,p_revision:book.revision

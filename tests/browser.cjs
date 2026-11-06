@@ -10,6 +10,7 @@ const server=http.createServer(async(req,res)=>{
     const filename=path.resolve(root,'.'+new URL(req.url,'http://localhost').pathname.replace(/\/$/,'/index.html'));
     if(!filename.startsWith(root+path.sep))throw Error('bad path');
     res.setHeader('Content-Type',types[path.extname(filename)]||'application/octet-stream');
+    if(filename===path.join(root,'config.js')){res.end('window.READER_CONFIG={richEditorEnabled:false};');return;}
     res.end(await fs.readFile(filename));
   }catch{res.writeHead(404);res.end('Not found');}
 });

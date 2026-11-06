@@ -1,3 +1,4 @@
+import {mergeDictionaryOverrides} from './rich-model.js';
 import {planBundle,safeRichDocument} from './migration-library.js';
 import {getSetting,setSetting} from './storage.js';
 import {digest,canonical} from './migration-model.js';
@@ -43,7 +44,7 @@ export class CompleteMigration{
     }
     await this.refresh();await this.onImported();this.render();$('complete-status').textContent=`Migration finished: ${this.plan.summary.articles} editions, ${this.plan.summary.dictionaryEntries} dictionary entries, ${this.plan.summary.occurrences} dictionary source occurrences. All imported data is private. Originals and saved editions are retained separately.`;$('complete-import').hidden=true;this.notify($('complete-status').textContent);
   }
-  async record(meta){if(this.cache.has(meta.id))return this.cache.get(meta.id);const r=await this.cloud.importPayload(meta.id);if(!r)throw Error('Imported record unavailable.');this.cache.set(meta.id,r);return r;}
+  async record(meta){if(this.cache.has(meta.id))return this.cache.get(meta.id);const key=`import-record:${this.scope}:${meta.id}`;let r=await getSetting(key);if(!r){r=await this.cloud.importPayload(meta.id);if(!r)throw Error('Imported record unavailable.');await setSetting(key,r);}this.cache.set(meta.id,r);return r;}
   async openEdition(){const meta=this.meta.find(x=>x.bookId===this.context().book?.id);if(meta)await this.show(meta);}
   async show(meta){
     const {payload}=await this.record(meta);$('import-detail-title').textContent=meta.title;$('import-detail-info').textContent=`Private preserved ${meta.kind}${payload.path?' · '+payload.path:''}`;const body=$('import-detail-body');body.replaceChildren();
@@ -62,6 +63,6 @@ export class CompleteMigration{
   async findDictionary(){
     await this.refresh();const q=$('import-dictionary-query').value.trim().toLocaleLowerCase();if(!q)throw Error('Enter a word to search.');const out=$('import-dictionary-results');out.textContent='Searching private imported dictionaries…';const results=[],corrections={};
     for(const meta of this.meta.filter(x=>['dictionary','corrections'].includes(x.kind))){const {payload}=await this.record(meta);if(meta.kind==='corrections')Object.assign(corrections,payload.overrides);else for(const row of payload.rows)if(`${row.term} ${row.definition}`.toLocaleLowerCase().includes(q))results.push(row);}
-    out.replaceChildren();for(const base of results.slice(0,100)){const override=corrections[base.language+'\0'+base.term]||{};const row={...base,...override};const d=el('details');d.append(el('summary',`${row.term} · ${row.language||''} · ${row.pinyin||''}`),el('p',row.definition||row.annotation||''),el('pre',JSON.stringify(row,null,2)));out.append(d);}out.append(el('p',`${results.length} matches${results.length>100?' · first 100 shown':''}. Personal corrections are applied over the original dictionary.`));
+    const mergedCorrections=mergeDictionaryOverrides(this.context().books,corrections);for(const key of Object.keys(corrections))delete corrections[key];Object.assign(corrections,mergedCorrections);out.replaceChildren();for(const base of results.slice(0,100)){const override=corrections[base.language+'\0'+base.term]||{};const row={...base,...override};const d=el('details');d.append(el('summary',`${row.term} · ${row.language||''} · ${row.pinyin||''}`),el('p',row.definition||row.annotation||''),el('pre',JSON.stringify(row,null,2)));out.append(d);}out.append(el('p',`${results.length} matches${results.length>100?' · first 100 shown':''}. Personal corrections are applied over the original dictionary.`));
   }
 }

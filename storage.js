@@ -67,6 +67,8 @@ export async function clearAccount(scope) {
     const tx=db.transaction(['books','assets','settings','migration_files','migration_batches'],'readwrite');
     tx.objectStore('settings').delete(`vocabulary:${scope}`);
     tx.objectStore('settings').delete(`contributions:${scope}`);
+    tx.objectStore('settings').delete(`imports:${scope}`);
+    const imported=tx.objectStore('settings').openCursor();imported.onsuccess=()=>{const c=imported.result;if(c){if(String(c.key).startsWith(`import-record:${scope}:`))c.delete();c.continue();}};
     for(const device of ['phone','desktop'])tx.objectStore('settings').delete(`tools:${scope}:${device}`);
     for(const name of ['books','assets','migration_files','migration_batches']) {
       const request=tx.objectStore(name).openCursor();

@@ -1,3 +1,34 @@
+# Study Studio rich editor — version 0.6
+
+The user requested Study Studio UI and inherited editing behavior. Added a trusted
+shared editor adapter in `studio/`, `rich-editor.js` and `rich-model.js`. This
+replaces the default textarea workflow with a sandboxed rich editor, full toolbar,
+All Notes sidebar, ruby/pinyin, linked editable footnotes, comments, media,
+undo/redo, dictionaries, speech, exports, layout/theme controls and bottom dock.
+The original app/source files remain untouched.
+
+Structured rich editions are stored as `reader_documents.rich_state` text through
+`save_reader_rich_document`, with owner binding, existing CAS/revision history and
+legacy plaintext compatibility. The user installed `supabase/rich-editor.sql` and
+reported success; live anonymous RPC/column probes return 401. CUA native pipe
+startup failed, including after reset, so authenticated production UI checks
+require user confirmation. No browser credentials were read or copied. Live anonymous rich-save and rich-column
+probes both returned 401 after installation.
+
+Static-only offline shell and browser installation support are included. Private
+import payload caches are scoped and cleared on sign-out. Original rich data is
+restored lazily; newer working plaintext remains authoritative and recovery
+editions are retained. See `STUDIO_EDITOR.md` for limits and verification.
+
+Verification: 31 model/SQL tests; existing browser regression suite; complete
+migration browser test; rich editor test with the exact Rongzhai seed, ten
+footnotes, ruby, private notes, undo/redo, save/reopen, offline reopening and
+desktop/mobile screenshots; a separate two-device account simulation with media.
+All passed. Static editor assets are bundled into a nonce-protected sandbox so
+offline use does not require opaque-frame network requests.
+
+---
+
 # Study Studio hierarchy restored — 2026-11-05
 
 Library groups imported editions by the original category → collection → article

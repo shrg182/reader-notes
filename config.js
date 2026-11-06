@@ -5,5 +5,6 @@ window.READER_CONFIG = {
   appUrl: 'https://shrg182.github.io/reader-notes/',
   // Enable only after sharing.sql is installed and its policies verified.
   sharingEnabled: true,
-  migrationEnabled: true
+  migrationEnabled: true,
+  richEditorEnabled: true
 };

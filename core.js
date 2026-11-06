@@ -1,3 +1,4 @@
+import {validateRichState} from './rich-model.js';
 export const MAX_TEXT = 1_000_000;
 export function validateBook(value) {
   if (!value || typeof value !== 'object' ||
@@ -7,8 +8,10 @@ export function validateBook(value) {
       typeof value.content !== 'string' || value.content.length > MAX_TEXT ||
       typeof value.notes !== 'string' || value.notes.length > MAX_TEXT ||
       typeof value.deleted !== 'boolean') throw new Error('Invalid article record.');
+  const rich=value.richState??value.rich_state;
+  if(rich!==undefined&&rich!==null)validateRichState(rich);
   return {id:value.id, title:value.title, language:value.language,
-    content:value.content, notes:value.notes, deleted:value.deleted};
+    content:value.content, notes:value.notes, deleted:value.deleted,...(value.richState!==undefined||value.rich_state!==undefined?{richState:rich??null}:{})};
 }
 export function validateBackup(data) {
   if (!data || !['reader-notes','reader-studio'].includes(data.format) || data.version !== 1 ||
@@ -18,7 +21,7 @@ export function validateBackup(data) {
   return books;
 }
 export function sameEdition(a,b) {
-  return ['title','language','content','notes','deleted'].every(k=>a[k]===b[k]);
+  return ['title','language','content','notes','deleted'].every(k=>a[k]===b[k])&&(a.richState??a.rich_state??null)===(b.richState??b.rich_state??null);
 }
 export function makeBackup(books) {
   return {format:'reader-notes',version:1,exportedAt:new Date().toISOString(),
