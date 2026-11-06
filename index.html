@@ -20,17 +20,17 @@
       <div class="heading"><div><p class="eyebrow">READER NOTES</p><h1>Library</h1><p id="identity">Local library · this browser</p></div>
         <button id="new-book" class="primary">+ New article</button></div>
       <div class="library-tools">
-        <label class="search">Search library<input id="search" type="search" placeholder="Title, text or notes"></label>
-        <button id="import-text">Import text</button><input id="text-file" type="file" accept=".txt,.md,text/plain,text/markdown" hidden>
+        <label class="search">Search library<input id="search" type="search" placeholder="Search articles, chapters or collections…"></label>
+        <details class="library-tools-menu"><summary>Library tools</summary><div class="library-menu-items"><button id="import-text">Import text</button><input id="text-file" type="file" accept=".txt,.md,text/plain,text/markdown" hidden>
         <button id="backup">Export backup</button>
         <button id="restore">Import backup</button><input id="backup-file" type="file" accept=".json,application/json" hidden>
         <button id="studio-migration">Import from Reader Studio</button>
-        <button id="shared-library">Shared library</button><button id="reading-groups">Reading groups</button>
+        </div></details><button id="shared-library">Shared library</button><button id="reading-groups">Reading groups</button>
         <button id="sync-library">Sync now</button>
         <label class="trash-toggle"><input id="show-trash" type="checkbox"> Show trash</label>
       </div>
       <div class="library-sheet"><div class="library-categories"><label>Category<select id="library-category"><option value="">All categories</option></select></label><label>Collection<select id="library-collection"><option value="">All collections</option></select></label><p id="library-count" role="status"></p></div>
-      <div class="sheet-columns" aria-hidden="true"><span>Article</span><span>Language</span><span>Save status</span><span>Actions</span></div><div id="books" class="books"></div></div>
+      <div class="sheet-columns" aria-hidden="true"><span>Article</span><span>Reading activity</span><span>Editing &amp; save status</span><span>Actions</span></div><div id="books" class="books"></div></div>
       <p class="muted">Local mode is shared by people using this browser profile. Export a backup to keep an independent copy.</p>
     </section>
     <section id="workspace-view" hidden>
@@ -53,6 +53,6 @@
   </form></dialog>
   <dialog id="recovery-dialog"><form id="recovery-form"><h2>Choose a new password</h2><label>New password<input id="new-password" type="password" minlength="8" autocomplete="new-password" required></label><button class="primary">Update password</button><p id="recovery-status" role="status"></p></form></dialog>
   <dialog id="review-dialog"><div class="dialog-heading"><h2 id="review-title">Review</h2><button data-close="review-dialog" aria-label="Close review">×</button></div><div id="review-body"></div><div id="review-actions" class="actions"></div></dialog>
-  <footer>Reader Notes · 阅读札记 · Study Studio editor 0.6</footer>
+  <footer>Reader Notes · 阅读札记 · Study Studio catalog & editor 0.7</footer>
 </body>
 </html>

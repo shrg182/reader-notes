@@ -45,6 +45,7 @@ export async function putBooks(scope,books,study,contributions) {
     tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);
   });
 }
+export const listAssets=async scope=>(await transaction('assets','readonly',s=>s.getAll())).filter(a=>a.key.startsWith(scope+':'));
 export const getAsset=(scope,id)=>transaction('assets','readonly',s=>s.get(`${scope}:${id}`));
 export const putAsset=(scope,id,file)=>transaction('assets','readwrite',s=>s.put({key:`${scope}:${id}`,file}));
 export const deleteAsset=(scope,id)=>transaction('assets','readwrite',s=>s.delete(`${scope}:${id}`));
@@ -68,6 +69,8 @@ export async function clearAccount(scope) {
     tx.objectStore('settings').delete(`vocabulary:${scope}`);
     tx.objectStore('settings').delete(`contributions:${scope}`);
     tx.objectStore('settings').delete(`imports:${scope}`);
+    tx.objectStore('settings').delete(`reading:${scope}`);
+    tx.objectStore('settings').delete(`catalog-activity:${scope}`);
     const imported=tx.objectStore('settings').openCursor();imported.onsuccess=()=>{const c=imported.result;if(c){if(String(c.key).startsWith(`import-record:${scope}:`))c.delete();c.continue();}};
     for(const device of ['phone','desktop'])tx.objectStore('settings').delete(`tools:${scope}:${device}`);
     for(const name of ['books','assets','migration_files','migration_batches']) {

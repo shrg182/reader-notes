@@ -336,3 +336,10 @@ plain text; advanced formatting, inline annotations, EPUB, shared catalogs,
 service-worker offline loading and source-file synchronization are future work.
 Cloud history is retained by SQL but only device history is browsable in the UI.
 Large exports with history may exceed the current 25 MB import limit.
+
+
+### Catalog update 0.7 — 2026-11-05
+- Study Studio compact category/collection catalog, article-level counts, saved/source editions disclosure, numeric source ordering, Library tools menu.
+- Imported reading/editing activity displayed from private preserved study records. New reading visits are account-scoped device-local settings, deliberately disclosed in the reading-cell tooltip. No new Supabase schema required.
+- Real attached PDFs only. Source/saved edition documents remain unchanged by grouping; no destructive deduplication.
+- Added identity regression tests and isolated desktop/mobile catalog browser verification (`tests/catalog-browser.cjs`). Existing browser tests use Open editor and Library tools controls.

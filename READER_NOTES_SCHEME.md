@@ -232,3 +232,14 @@ foundation. The shared editor/workspace implementation is adapted directly and
 connected to account storage. Rich annotation state is retained per document with
 revision history; the plaintext projection remains a separate sharing boundary.
 Details and remaining format-specific limits are in `STUDIO_EDITOR.md`.
+
+
+## Study Studio catalog parity (0.7)
+
+The library uses a compact full-width search, category descriptions, collapsible collections and numbered article rows. Import, migration inspection and backup operations are in Library tools. Shared library, reading groups and synchronization remain directly accessible.
+
+One article row groups independent source and saved editions under Editions. Stable source paths and original catalog keys identify articles; titles never determine identity. Historical Jianshang chapter versions share a chapter identity, while distinct personal entry IDs remain separate. Every edition stays intact and independently editable/shareable. Open editor prefers a saved edition when available. Counts distinguish articles from editions; collection ordering follows the existing taxonomy and numeric source paths.
+
+Imported reading counts, last-read dates and editing activity come from the preserved Studio study records. Missing history says Not recorded. New editor visits are saved per account on this browser and added to imported counts; these new counts are device-local and are not synchronized or included in article backups. No missing historical dates are invented. Library history caches reset when imported study record fingerprints change and remain isolated by account.
+
+PDF actions appear only when a corresponding binary is actually attached on this device. References to missing legacy PDF files do not produce working-file buttons. Private saved text, notes, archives and reading histories are never part of the published app assets; the static identity map contains only public Studio catalog keys and paths.

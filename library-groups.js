@@ -1,4 +1,4 @@
-import {TAXONOMY} from './library-taxonomy.js';
+import {TAXONOMY,SOURCE_PATHS} from './library-taxonomy.js';
 export const categories=Object.entries(TAXONOMY.CATEGORIES).map(([id,[title]])=>({id,title}));
 export function classifyImport(meta){
  let collection=(meta?.sourcePath||'').replace(/^\.\//,'').split('/')[0];
@@ -21,4 +21,21 @@ export function groupedBooks(books,metadata){
  for(const book of books){const meta=index.get(book.id),group=meta?classifyImport(meta):{category:'personal',collection:'personal',categoryTitle:'My reading materials',collectionTitle:'My reading materials',path:''};const key=group.category+':'+group.collection;if(!groups.has(key))groups.set(key,{...group,books:[]});groups.get(key).books.push(book);}
  const order=[...Object.keys(TAXONOMY.CATEGORIES),'other','personal'];
  return [...groups.values()].sort((a,b)=>order.indexOf(a.category)-order.indexOf(b.category)||(TAXONOMY.CATEGORY_COLLECTIONS[a.category]||[]).indexOf(a.collection)-(TAXONOMY.CATEGORY_COLLECTIONS[b.category]||[]).indexOf(b.collection));
+}
+
+// Titles are editable and are never used to identify an article.
+export function articleIdentity(book,meta){
+ const key=meta?.sourceKey||'';
+ const chapter=key.match(/^jianshang:(chapter_\d+):editor(?::v\d+(?::[^:]+)?)?$/);
+ const path=SOURCE_PATHS[key]||meta?.sourcePath||(chapter?`jianshang/${chapter[1]}/editor.html`:'');
+ return path?'path:'+path.replace(/^\.\//,''):key?'key:'+key:'book:'+book.id;
+}
+export function articleRows(books,metadata){
+ const index=new Map(metadata.filter(x=>x.bookId).map(x=>[x.bookId,x])),rows=new Map();
+ for(const book of books){const meta=index.get(book.id),id=articleIdentity(book,meta);if(!rows.has(id))rows.set(id,{id,path:id.startsWith('path:')?id.slice(5):'',editions:[]});rows.get(id).editions.push(book);}
+ for(const row of rows.values()){
+  row.editions.sort((a,b)=>(index.get(a.id)?.edition==='Source edition'?1:0)-(index.get(b.id)?.edition==='Source edition'?1:0)||String(b.updatedAt||'').localeCompare(String(a.updatedAt||'')));
+  row.book=row.editions[0];const source=row.editions.find(b=>index.get(b.id)?.edition==='Source edition');row.title=source?.title||row.book.title.replace(/ · saved edition$/,'');
+ }
+ return [...rows.values()].sort((a,b)=>(a.path||a.id).localeCompare(b.path||b.id,undefined,{numeric:true}));
 }
