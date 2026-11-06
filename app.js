@@ -1,6 +1,6 @@
 import {TAXONOMY} from './library-taxonomy.js';
 import {RichEditor} from './rich-editor.js';
-import {articleRows,classifyImport,groupedBooks} from './library-groups.js';
+import {catalogTitle,articleRows,classifyImport,groupedBooks} from './library-groups.js';
 import {CompleteMigration} from './migration-complete-ui.js';
 import {validateBook,validateBackup,makeBackup,mergeRemote,sameEdition} from './core.js';
 import * as db from './storage.js';
@@ -33,7 +33,7 @@ const status=message=>{$('save-status').textContent=message;};
 const tools=new ReaderTools({context:()=>({scope,book:current(),books,hasPdf:Boolean(pdfUrl)}),run,notify,openSource:openBook});
 const migration=new StudioMigration({run,notify,context:()=>({scope,books,label:cloud.session?`private library (${cloud.session.user.email})`:'local library on this browser'}),onImported:async()=>{books=await db.listBooks(scope);render();}});
 const sharing=new ReaderSharing({cloud,context:()=>({scope,book:current(),books}),run,notify,saveBook:saveDraft,syncBook:sync});
-const complete=new CompleteMigration({cloud,context:()=>({scope,books,book:current()}),run,notify,onImported:async()=>{await sync();await complete.activate();}});
+const complete=new CompleteMigration({cloud,context:()=>({scope,books,book:current()}),run,notify,onOpenEdition:openBook,onImported:async()=>{await sync();await complete.activate();}});
 const rich=new RichEditor({context:()=>({scope,books,book:current()}),notify,
   onDirty:()=>{unsaved=true;editGeneration++;status('Unsaved rich edits…');},
   onState:values=>{if(!current())return;if(rich.value!==current().richState||values.content!==$('content').value){$('content').value=values.content;unsaved=true;editGeneration++;clearTimeout(timer);timer=setTimeout(()=>run(saveDraft,true),800);}},
@@ -89,23 +89,22 @@ function render(){
   options($('library-collection'),allGroups.filter(g=>!$('library-category').value||g.category===$('library-category').value).map(g=>[g.collection,g.collectionTitle,articleRows(g.books,complete.meta).length]),'All collections');
   const groups=groupedBooks(visible,complete.meta).filter(g=>(!$('library-category').value||g.category===$('library-category').value)&&(!$('library-collection').value||g.collection===$('library-collection').value));
   $('books').replaceChildren();const categoryNodes=new Map();let shown=0;
-  const metaIndex=new Map(complete.meta.map(m=>[m.bookId,m]));
   for(const group of groups){
     let category=categoryNodes.get(group.category);
     if(!category){category=node('details','','library-category-group');category.open=libraryExpansion.get('category:'+group.category)??true;category.ontoggle=()=>libraryExpansion.set('category:'+group.category,category.open);const total=groups.filter(g=>g.category===group.category).reduce((n,g)=>n+articleRows(g.books,complete.meta).length,0);const heading=node('summary');heading.append(node('strong',group.categoryTitle),node('small',TAXONOMY.CATEGORIES[group.category]?.[1]||''),node('span',`${total} articles`,'category-count'));category.append(heading);categoryNodes.set(group.category,category);$('books').append(category);}
     const collection=node('details','','library-collection-group');collection.open=Boolean(query||$('library-collection').value||(libraryExpansion.get('collection:'+group.collection)??groups.length===1));collection.ontoggle=()=>libraryExpansion.set('collection:'+group.collection,collection.open);collection.append(node('summary',`${group.collectionTitle} · ${articleRows(group.books,complete.meta).length} articles`));category.append(collection);
     const ordered=articleRows(group.books,complete.meta);
-    for(const [position,row] of ordered.entries()){
+    for(const row of ordered){
       const book=row.book;shown++;const card=node('article','','book');
-      const title=node('h2',row.title);title.prepend(node('span',String(position+1).padStart(2,'0'),'article-number'));
+      const title=node('h2');if(trash)title.textContent=catalogTitle(row.title,group.collectionTitle);else{const link=button(catalogTitle(row.title,group.collectionTitle),()=>openBook(book.id));link.className='article-title';link.title=row.title;title.append(link);}
       const reading=node('p',activityText(row));reading.title='Original imported history plus visits on this browser. New visit counts remain on this device.';
       const editing=originalActivity['reading-workspace-editing-history-v1']?.[row.path];
       const lastEdit=book.history?.length?book.updatedAt:editing?.lastEdited;
       const save=node('p',(lastEdit?'Edited '+new Date(lastEdit).toLocaleDateString():'Editing history not recorded')+' · '+(book.conflict?'Conflict needs review':book.dirty?(cloud.session?'Waiting to sync':'Saved on device'):'Synced'));
       card.append(title,reading,save);const actions=node('div','','actions');
       if(trash)actions.append(button('Restore article',async()=>{await changeBook(book,{deleted:false});await sync();}));
-      else actions.append(button('Open editor',()=>openBook(book.id)),button('Sharing',async()=>{await openBook(book.id);await sharing.openOwn();}));
-      if(row.editions.length>1){const editions=node('details','','edition-menu');editions.append(node('summary',`Editions (${row.editions.length})`));const list=node('div');for(const edition of row.editions)list.append(button((metaIndex.get(edition.id)?.edition||'Working edition')+' · '+edition.title,()=>openBook(edition.id)));editions.append(list);actions.append(editions);}
+      else actions.append(button('Sharing',async()=>{await openBook(book.id);await sharing.openOwn();}));
+
       const pdfEdition=row.editions.find(b=>pdfBooks.has(b.id));if(pdfEdition&&!trash)actions.append(button('PDF',()=>openBook(pdfEdition.id)));
       if(book.conflict)actions.append(button('Review conflict',()=>reviewConflict(book.id)));
       card.append(actions);collection.append(card);

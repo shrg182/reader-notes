@@ -1,7 +1,7 @@
 {
   "name": "reader-notes",
   "private": true,
-  "version": "0.8.0",
+  "version": "0.8.1",
   "type": "module",
   "scripts": {
     "start": "python3 -m http.server 8780 --bind 127.0.0.1",

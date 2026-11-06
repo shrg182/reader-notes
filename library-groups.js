@@ -39,3 +39,14 @@ export function articleRows(books,metadata){
  }
  return [...rows.values()].sort((a,b)=>(a.path||a.id).localeCompare(b.path||b.id,undefined,{numeric:true}));
 }
+
+// Shorten only an exact repeated collection prefix; never change stored titles.
+export function catalogTitle(title,collectionTitle){
+ const unwrap=value=>value.startsWith('《')&&value.endsWith('》')?value.slice(1,-1):value;
+ const full=unwrap(title),collection=unwrap(collectionTitle);
+ if(collection&&full.startsWith(collection)){
+  const suffix=full.slice(collection.length),match=suffix.match(/^\s*(?:[·:：—–-]|\/|\s)\s*(.+)$/s);
+  if(match?.[1]?.trim())return match[1].trim();
+ }
+ return title;
+}

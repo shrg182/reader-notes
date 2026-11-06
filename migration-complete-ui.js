@@ -1,3 +1,4 @@
+import {articleRows} from './library-groups.js';
 import {mergeDictionaryOverrides} from './rich-model.js';
 import {planBundle,safeRichDocument} from './migration-library.js';
 import {getSetting,setSetting} from './storage.js';
@@ -5,18 +6,19 @@ import {digest,canonical} from './migration-model.js';
 const $=id=>document.getElementById(id);
 const el=(tag,text)=>{const x=document.createElement(tag);if(text!==undefined)x.textContent=text;return x;};
 export class CompleteMigration{
-  constructor({cloud,context,run,notify,onImported}){
-    Object.assign(this,{cloud,context,run,notify,onImported});this.meta=[];this.cache=new Map();
+  constructor({cloud,context,run,notify,onImported,onOpenEdition}){
+    Object.assign(this,{cloud,context,run,notify,onImported,onOpenEdition});this.meta=[];this.cache=new Map();
     const open=el('button','Migrated library');open.id='complete-migration';$('studio-migration').after(open);open.onclick=()=>run(()=>this.open());
     const d=el('dialog');d.id='complete-migration-dialog';d.innerHTML=`<div class="dialog-heading"><h2>Reader Studio library</h2><button id="close-complete">×</button></div><p>Original editions, study records and dictionaries stay private to your account. Saved editions remain separate from source editions.</p><label>Import prepared Studio package<input id="complete-file" type="file" accept=".json"></label><p id="complete-status" role="status"></p><div id="complete-preview"></div><button id="complete-import" hidden>Import into my private library</button><h3>Imported records</h3><label>Find originals and study data<input id="complete-search" type="search"></label><select id="complete-kind"><option value="">All records</option><option value="edition">Editions</option><option value="dictionary">Dictionary entries</option><option value="occurrences">Dictionary sources</option><option value="corrections">Dictionary corrections</option><option value="study">Study records</option><option value="archive">Original archives</option></select><div id="complete-records"></div>`;
     document.body.append(d);$('close-complete').onclick=()=>d.close();$('complete-file').onchange=()=>run(()=>this.inspect());$('complete-import').onclick=()=>run(()=>this.import());
     $('complete-search').oninput=()=>this.render();$('complete-kind').onchange=()=>this.render();
-    const source=el('button','Original edition & study data');source.id='imported-edition';source.hidden=true;$('history').after(source);source.onclick=()=>run(()=>this.openEdition());
+    const choices=el('dialog');choices.id='edition-choices';choices.innerHTML='<div class="dialog-heading"><h2>Original editions</h2><button id="close-edition-choices" aria-label="Close original editions">×</button></div><p>Source and saved working editions remain independent. Pinyin and clean text are views within an edition.</p><div id="edition-choice-list"></div>';document.body.append(choices);$('close-edition-choices').onclick=()=>choices.close();
+    const source=el('button','Original editions & study data');source.id='imported-edition';source.hidden=true;$('history').after(source);source.onclick=()=>run(()=>this.openEdition());
     const detail=el('dialog');detail.id='import-detail';detail.innerHTML=`<div class="dialog-heading"><h2 id="import-detail-title"></h2><button id="close-import-detail">×</button></div><p id="import-detail-info"></p><div id="import-detail-body"></div>`;document.body.append(detail);$('close-import-detail').onclick=()=>detail.close();
     const dictionary=el('details');dictionary.innerHTML='<summary>Imported Studio dictionary</summary><label>Search imported dictionaries<input id="import-dictionary-query" type="search"></label><button id="import-dictionary-find">Search dictionary</button><div id="import-dictionary-results"></div>';$('block-dictionary').append(dictionary);$('import-dictionary-find').onclick=()=>run(()=>this.findDictionary());
   }
   async activate(){
-    const {scope}=this.context();if(this.scope!==scope){this.scope=scope;this.cache.clear();this.meta=await getSetting(`imports:${scope}`)||[];this.plan=null;$('complete-file').value='';$('complete-preview').replaceChildren();$('complete-import').hidden=true;$('complete-records').replaceChildren();$('import-detail-body').replaceChildren();$('import-detail').close();$('complete-migration-dialog').close();$('import-dictionary-results').replaceChildren();}
+    const {scope}=this.context();if(this.scope!==scope){this.scope=scope;$('edition-choices').close();$('edition-choice-list').replaceChildren();this.cache.clear();this.meta=await getSetting(`imports:${scope}`)||[];this.plan=null;$('complete-file').value='';$('complete-preview').replaceChildren();$('complete-import').hidden=true;$('complete-records').replaceChildren();$('import-detail-body').replaceChildren();$('import-detail').close();$('complete-migration-dialog').close();$('import-dictionary-results').replaceChildren();}
     $('imported-edition').hidden=!this.meta.some(x=>x.bookId===this.context().book?.id);
   }
   async refresh(){
@@ -45,7 +47,17 @@ export class CompleteMigration{
     await this.refresh();await this.onImported();this.render();$('complete-status').textContent=`Migration finished: ${this.plan.summary.articles} editions, ${this.plan.summary.dictionaryEntries} dictionary entries, ${this.plan.summary.occurrences} dictionary source occurrences. All imported data is private. Originals and saved editions are retained separately.`;$('complete-import').hidden=true;this.notify($('complete-status').textContent);
   }
   async record(meta){if(this.cache.has(meta.id))return this.cache.get(meta.id);const key=`import-record:${this.scope}:${meta.id}`;let r=await getSetting(key);if(!r){r=await this.cloud.importPayload(meta.id);if(!r)throw Error('Imported record unavailable.');await setSetting(key,r);}this.cache.set(meta.id,r);return r;}
-  async openEdition(){const meta=this.meta.find(x=>x.bookId===this.context().book?.id);if(meta)await this.show(meta);}
+  async openEdition(){
+    const {books,book}=this.context(),row=articleRows(books.filter(b=>!b.deleted||b.id===book?.id),this.meta).find(r=>r.editions.some(b=>b.id===book?.id));
+    if(!row)return;
+    if(row.editions.length===1){const meta=this.meta.find(x=>x.bookId===book.id);if(meta)await this.show(meta);return;}
+    $('edition-choice-list').replaceChildren();
+    for(const edition of row.editions){const meta=this.meta.find(x=>x.bookId===edition.id),card=el('section');card.className='contribution-card';card.append(el('h3',edition.title),el('p',(meta?.edition||'Working edition')+(edition.id===book.id?' · currently open':'')));
+      const open=el('button','Open working edition');open.onclick=()=>this.run(async()=>{$('edition-choices').close();await this.onOpenEdition(edition.id);});card.append(open);
+      if(meta){const snapshot=el('button','Preserved original & study data');snapshot.onclick=()=>this.run(()=>this.show(meta));card.append(snapshot);} $('edition-choice-list').append(card);
+    }
+    $('edition-choices').showModal();
+  }
   async show(meta){
     const {payload}=await this.record(meta);$('import-detail-title').textContent=meta.title;$('import-detail-info').textContent=`Private preserved ${meta.kind}${payload.path?' · '+payload.path:''}`;const body=$('import-detail-body');body.replaceChildren();
     const download=(name,text)=>{const a=el('a','Download '+name);const url=URL.createObjectURL(new Blob([text],{type:'application/octet-stream'}));a.href=url;a.download=name;a.onclick=()=>setTimeout(()=>URL.revokeObjectURL(url),60000);body.append(a);};

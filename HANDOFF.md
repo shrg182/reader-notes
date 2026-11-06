@@ -353,3 +353,7 @@ The modular Reader Notes toolbar is always available above the embedded Study St
 - Library uses compact brand + My Account + synchronization status, search/New/Filters/More, and article count. Email and detailed storage counts moved to Account. Routine sync banner suppressed visually; errors stay visible.
 - Account groups existing auth/security, default tools, groups/invitations, owner-filtered publication overview, backup/import and synchronization controls. Publication overview is read-only until existing explicit sharing actions are used. No new SQL.
 - Existing control IDs/handlers retained; tests follow moved controls. Files & recovery has an Account shortcut for the rich editor. Last successful library synchronization stored per account on this device and cleared on signout.
+
+
+### Clickable catalog titles 0.8.1 — 2026-11-06
+Article titles are now keyboard-accessible buttons styled as text, opening the saved working edition by default. The duplicate Open editor action, generated ordinal numbers and per-row Editions menu are removed. Book summaries retain native expand/collapse and keyboard behavior but hide disclosure markers; spacing, type size, open-state shading and focus outlines distinguish hierarchy. Exact repeated collection prefixes are shortened for display only; full stored titles, chapter numbers and search remain intact. All independent working/source editions and preserved snapshots remain accessible through Files & recovery → Original editions & study data. No document migration, deletion or permission changes.
