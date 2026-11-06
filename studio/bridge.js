@@ -38,7 +38,17 @@
         initializing=false;post('loaded');
       }catch(error){post('error',{message:error.message});}
     }else if(m.nonce===nonce&&m.type==='flush')flush(m.requestId);
+    else if(m.nonce===nonce&&m.type==='tool'&&!initializing){
+      if(m.action==='top'){editor.scrollIntoView({block:'start'});editor.focus();const range=document.createRange();range.selectNodeContents(editor);range.collapse(true);getSelection().removeAllRanges();getSelection().addRange(range);}
+      if(m.action==='find'&&typeof m.query==='string'&&m.query.length<=200){const search=document.getElementById('contentSearch');search.value=m.query;search.dispatchEvent(new Event('input',{bubbles:true}));document.getElementById('searchNextBtn').click();post('tool-result',{message:document.getElementById('contentSearchStatus').textContent||'Search complete.'});}
+      if(m.action==='view'){
+        if(['16','18','20','24','28'].includes(m.size)){editor.style.fontSize=m.size+'px';document.documentElement.style.setProperty('--reading-content-font-size',m.size+'px');}
+        if(['1.5','1.85','2.2'].includes(m.spacing)){editor.style.lineHeight=m.spacing;document.documentElement.style.setProperty('--reading-content-line-height',m.spacing);}
+        if(['side','stack','focus'].includes(m.layout)){document.body.classList.toggle('reader-parent-stack',m.layout==='stack');document.body.classList.toggle('reader-parent-focus',m.layout==='focus');}
+      }
+    }
     else if(m.nonce===nonce&&m.type==='saved')document.getElementById('saveStatus').textContent=m.message;
   });
+  document.addEventListener('selectionchange',()=>{if(initializing)return;const selection=getSelection();if(selection?.rangeCount&&document.getElementById('editor')?.contains(selection.anchorNode)&&document.getElementById('editor')?.contains(selection.focusNode))post('selection',{text:selection.toString().slice(0,5000)});});
   post('ready');
 })();

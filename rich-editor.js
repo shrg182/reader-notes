@@ -17,7 +17,7 @@ export class RichEditor{
  constructor({context,onDirty,onState,onAction,notify}){
   Object.assign(this,{context,onDirty,onState,onAction,notify});this.pending=new Map();this.generation=0;this.value=null;this.loaded=false;
   const frame=document.createElement('iframe');frame.id='studio-editor';frame.title='Study Studio rich editor';frame.setAttribute('sandbox','allow-scripts allow-modals allow-downloads');frame.hidden=true;$('workspace-view').append(frame);this.frame=frame;
-  const extra=document.createElement('button');extra.id='studio-extras';extra.textContent='Sharing & additional tools';extra.onclick=()=>document.body.classList.toggle('studio-extras-open');$('save').before(extra);
+  const extra=document.createElement('button');extra.id='studio-extras';extra.textContent='Article details';extra.setAttribute('aria-expanded','false');extra.onclick=()=>extra.setAttribute('aria-expanded',String(document.body.classList.toggle('studio-extras-open')));$('save').before(extra);
   addEventListener('message',e=>this.receive(e));
  }
  async open(book,payload){
@@ -60,6 +60,8 @@ export class RichEditor{
   if(m.type==='ready'&&this.bookId){this.frame.contentWindow.postMessage({readerStudio:true,type:'init',nonce:this.nonce,seed:this.seedValue,trustedAssets:{'editor.js':this.assets['editor.js'],'workspace.js':this.assets['workspace.js'],'history.js':this.assets['history.js']},assetsBase:new URL('studio/',location.href).href},'*');return;}
   if(m.nonce!==this.nonce||!this.bookId||this.context().scope!==this.scope||this.context().book?.id!==this.bookId)return;
   if(m.type==='loaded'){clearTimeout(this.loadTimer);this.loaded=true;this.resolveLoaded?.();}
+  if(m.type==='selection')this.onSelection?.(String(m.text||'').slice(0,5000));
+  if(m.type==='tool-result')document.getElementById('navigation-hint').textContent=String(m.message||'');
   if(m.type==='dirty')this.onDirty();
   if(m.type==='error'){const error=Error(m.message||'Rich editor failed.');if(!this.loaded){clearTimeout(this.loadTimer);this.rejectLoaded?.(error);}for(const pending of this.pending.values())pending.reject(error);this.pending.clear();this.notify(error.message,true);}
   if(m.type==='state'){
@@ -69,6 +71,7 @@ export class RichEditor{
   if(m.type==='action'){try{await this.onAction(m);}catch(error){this.notify(error.message,true);}}
  }
  async flush(){if(!this.loaded)return;const requestId=crypto.randomUUID();await new Promise((resolve,reject)=>{const timer=setTimeout(()=>{this.pending.delete(requestId);reject(Error('Editor save did not finish. Keep this tab open and retry.'));},15000);this.pending.set(requestId,{resolve:()=>{clearTimeout(timer);resolve();},reject:e=>{clearTimeout(timer);reject(e);}});this.frame.contentWindow.postMessage({readerStudio:true,type:'flush',nonce:this.nonce,requestId},'*');});}
+ tool(action,values={}){if(this.loaded)this.frame.contentWindow.postMessage({readerStudio:true,type:'tool',nonce:this.nonce,action,...values},'*');}
  saved(message){if(this.loaded)this.frame.contentWindow.postMessage({readerStudio:true,type:'saved',nonce:this.nonce,message},'*');}
- close(){clearTimeout(this.loadTimer);this.loaded=false;this.bookId=null;this.value=null;this.generation++;this.frame.hidden=true;this.frame.removeAttribute('src');this.frame.removeAttribute('srcdoc');document.body.classList.remove('studio-open','studio-extras-open');for(const p of this.pending.values())p.reject(Error('Editor closed.'));this.pending.clear();}
+ close(){clearTimeout(this.loadTimer);this.loaded=false;this.bookId=null;this.value=null;this.generation++;this.frame.hidden=true;this.frame.removeAttribute('src');this.frame.removeAttribute('srcdoc');document.body.classList.remove('studio-open','studio-extras-open');$('studio-extras').setAttribute('aria-expanded','false');for(const p of this.pending.values())p.reject(Error('Editor closed.'));this.pending.clear();}
 }

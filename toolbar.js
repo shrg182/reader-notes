@@ -41,7 +41,7 @@ export class ReaderTools {
     $('reading-mode').onclick=()=>{this.mode=!this.mode;this.paint();};
     $('customize-tools').onclick=()=>this.openSettings();
     $('find-next').onclick=()=>this.find();$('find-query').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();this.find();}};
-    $('article-top').onclick=()=>{$('content').focus();$('content').setSelectionRange(0,0);$('content').scrollTop=0;};
+    $('article-top').onclick=()=>{if(this.rich?.loaded){this.rich.tool('top');return;}$('content').focus();$('content').setSelectionRange(0,0);$('content').scrollTop=0;};
     for(const id of ['text-size','line-spacing','pane-layout'])$(id).onchange=()=>this.run(()=>this.saveView());
     for(const event of ['select','keyup','pointerup'])$('content').addEventListener(event,()=>this.capture());
     $('selection-lookup').onclick=()=>this.run(async()=>{await this.revealDictionary();this.useSelection();});
@@ -145,7 +145,7 @@ export class ReaderTools {
   }
   async saveView(){
     this.profile.views??={};this.profile.views[`${this.context().book?.id}:${this.target}`]={size:$('text-size').value,spacing:$('line-spacing').value,layout:$('pane-layout').value};
-    await setSetting(this.key,this.profile);this.applyView();
+    await setSetting(this.key,this.profile);this.applyView();if(this.rich?.loaded)this.rich.tool('view',{size:$('text-size').value,spacing:$('line-spacing').value,layout:$('pane-layout').value});
   }
   capture(){
     const area=$('content');this.selected=area.value.slice(area.selectionStart,area.selectionEnd).trim();
@@ -208,6 +208,7 @@ export class ReaderTools {
     if(!visible.length)$('vocabulary-list').append(text('p','No saved words match.'));
   }
   find(){
+    if(this.rich?.loaded){this.rich.tool('find',{query:$('find-query').value});return;}
     const area=$('content'),query=$('find-query').value;if(!query)return;
     const haystack=area.value.toLocaleLowerCase(),needle=query.toLocaleLowerCase();
     let index=haystack.indexOf(needle,area.selectionEnd);if(index<0)index=haystack.indexOf(needle);

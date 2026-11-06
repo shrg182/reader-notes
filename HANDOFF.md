@@ -343,3 +343,7 @@ Large exports with history may exceed the current 25 MB import limit.
 - Imported reading/editing activity displayed from private preserved study records. New reading visits are account-scoped device-local settings, deliberately disclosed in the reading-cell tooltip. No new Supabase schema required.
 - Real attached PDFs only. Source/saved edition documents remain unchanged by grouping; no destructive deduplication.
 - Added identity regression tests and isolated desktop/mobile catalog browser verification (`tests/catalog-browser.cjs`). Existing browser tests use Open editor and Library tools controls.
+
+
+### Restored toolbar 0.7.1 — 2026-11-06
+The modular Reader Notes toolbar is always available above the embedded Study Studio toolbar. It retains existing per-article visibility, expansion and pin preferences. Its Reading mode control collapses the modular blocks while the original Studio toolbar remains available. Expanded blocks scroll within a bounded panel to preserve editor space on phones. Article details retains the separate metadata/reference controls. Parent search, article-start, text size, spacing and layout controls now forward through the existing nonce-bound iframe bridge; rich selections feed the dictionary and read-aloud blocks. No database change. Verified with rich browser desktop/mobile screenshots, search, text size, collapse/restore and existing rich editing/offline checks.
