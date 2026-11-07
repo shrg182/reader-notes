@@ -13,6 +13,32 @@
     catch(error){post('error',{requestId,message:error.message});}finally{sending=false;if(pending){pending=false;flush();}}
   }
   window.ReaderBridge={markDirty,flush};
+  function organizeTools(){
+    const toolbar=document.querySelector('.toolbar'),header=document.querySelector('.topbar');
+    header.before(toolbar);toolbar.classList.add('reader-grouped-tools');
+    const groups={navigate:['Navigate','#contentSearch'],view:['View','#viewToggle','.workspace-skin-switch','.reading-theme-toggle','.reading-environment','.reading-immersive-trigger'],edit:['Edit & annotate','[data-command="undo"]','[aria-label="文字样式"]','.workspace-insert-menu','#clearBtn'],layout:['Panes & layout','.user-notes-shortcut','.workspace-pane-balance'],dictionary:['Dictionary & vocabulary','#globalHintsBtn'],speech:['Read aloud','#speakBtn'],files:['Files & recovery','#printPdfBtn','[data-cloud-sync]']};
+    const panels={};
+    for(const [id,[label]] of Object.entries(groups)){
+      const panel=document.createElement('section');panel.dataset.readerPanel=id;panel.hidden=true;
+      const heading=document.createElement('strong');heading.textContent=label;panel.append(heading);panels[id]=panel;
+    }
+    for(const [id,[, ...selectors]] of Object.entries(groups))for(const selector of selectors){
+      for(const node of document.querySelectorAll(selector)){
+        const group=node.closest('.group');panels[id].append(group||node);
+      }
+    }
+    // Keep original DOM nodes, including their file inputs and selection handlers.
+    for(const node of [...toolbar.children])if(!Object.values(panels).includes(node)){
+      if(node.id==='toolbarToggle'||node.id==='saveBtn'){node.hidden=true;continue;}
+      if(node.matches('.group')&&!node.children.length){node.remove();continue;}
+      if(node.matches('.group,.workspace-file-menu')||node.id==='resetBtn')panels.files.append(node);
+      else if(node.matches('a'))panels.dictionary.append(node);
+      else if(!node.hidden)panels.layout.append(node);
+    }
+    for(const panel of Object.values(panels))toolbar.append(panel);
+    document.body.classList.add('reader-tools-grouped');
+  }
+
   const load=src=>new Promise((resolve,reject)=>{const s=document.createElement('script');s.nonce=document.querySelector('script[nonce]')?.nonce||'';if(window.ReaderAssets?.[src]){s.textContent=window.ReaderAssets[src];document.body.append(s);resolve();}else{s.src=src;s.onload=resolve;s.onerror=()=>reject(Error('Editor component failed: '+src));document.body.append(s);}});
   addEventListener('message',async e=>{
     if(e.source!==parent||!e.data?.readerStudio)return;const m=e.data;
@@ -35,10 +61,11 @@
         for(const [label,action] of [['目录','library'],['书目','collection'],['窗格','panes'],['沉浸','immersive'],['设置','settings'],['札记','notes'],['同步','sync'],['编辑','edit'],['离线','offline'],['安装','install']]){const b=document.createElement('button');b.textContent=label;b.onclick=()=>{if(action==='panes')document.querySelector('.sidebar').classList.toggle('reader-hidden');else if(action==='immersive')document.body.classList.toggle('reader-immersive');else if(action==='edit')editor.focus();else if(action==='notes')document.getElementById('userNoteInput').scrollIntoView({block:'center'});else if(action==='settings')document.querySelector('.reading-environment-trigger')?.click();else {if(action==='sync')flush();post('action',{action});}};dock.append(b);}document.body.append(dock);
         document.querySelectorAll('a[href="#dictionary"]').forEach(a=>a.textContent='全书词典');
         matchMedia('(max-width:780px)').addEventListener('change',e=>setToolbarCollapsed(e.matches));
-        initializing=false;post('loaded');
+        organizeTools();initializing=false;post('loaded');
       }catch(error){post('error',{message:error.message});}
     }else if(m.nonce===nonce&&m.type==='flush')flush(m.requestId);
     else if(m.nonce===nonce&&m.type==='tool'&&!initializing){
+      if(m.action==='panels'&&m.blocks&&typeof m.blocks==='object'){for(const panel of document.querySelectorAll('[data-reader-panel]'))panel.hidden=m.blocks[panel.dataset.readerPanel]!==true;}
       if(m.action==='top'){editor.scrollIntoView({block:'start'});editor.focus();const range=document.createRange();range.selectNodeContents(editor);range.collapse(true);getSelection().removeAllRanges();getSelection().addRange(range);}
       if(m.action==='find'&&typeof m.query==='string'&&m.query.length<=200){const search=document.getElementById('contentSearch');search.value=m.query;search.dispatchEvent(new Event('input',{bubbles:true}));document.getElementById('searchNextBtn').click();post('tool-result',{message:document.getElementById('contentSearchStatus').textContent||'Search complete.'});}
       if(m.action==='view'){

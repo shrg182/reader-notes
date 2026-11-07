@@ -1,7 +1,7 @@
 // Shared block catalog. Format adapters expose capabilities, not separate toolbars.
 export const BLOCKS = [
   {id:'navigate',label:'Navigate'}, {id:'view',label:'View'},
-  {id:'layout',label:'Panes & layout'}, {id:'dictionary',label:'Dictionary & vocabulary'},
+  {id:'edit',label:'Edit & annotate'}, {id:'layout',label:'Panes & layout'}, {id:'dictionary',label:'Dictionary & vocabulary'},
   {id:'speech',label:'Read aloud'}, {id:'contributions',label:'Contributions'}, {id:'files',label:'Files & recovery'}
 ];
 export const ADAPTERS = {

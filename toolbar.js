@@ -34,10 +34,16 @@ export class ReaderTools {
     for(const id of ['attach-pdf','pdf-file','remove-pdf','history','export-text','delete-book'])$('block-files').append($(id));
     const fileHint=text('p','File and history actions apply to the editable article; Open reference PDF attaches its original source.');fileHint.className='tool-hint';$('block-files').append(fileHint);
     document.querySelector('.workspace-tools').remove();
+    $('block-view').prepend(document.querySelector('.tools-control label'));
+    document.querySelector('.workspace-heading').append($('reading-mode'));
+    const settings=document.createElement('details');settings.className='header-tool-settings';
+    const summary=text('summary','⚙');summary.setAttribute('aria-label','Tool settings');settings.append(summary,$('tool-scope-label'),$('customize-tools'));
+    document.querySelector('.workspace-heading').append(settings);
+    document.querySelector('.tools-control').remove();
     this.makeSettings();this.bind();
   }
   bind(){
-    $('tool-target').onchange=()=>this.run(async()=>{this.stop();this.target=$('tool-target').value;await this.activate(false);});
+    $('tool-target').onchange=()=>this.run(async()=>{this.stop();this.target=$('tool-target').value;await this.activate(false);this.preferences.view.visible=true;this.preferences.view.expanded=true;this.paint();});
     $('reading-mode').onclick=()=>{this.mode=!this.mode;this.paint();};
     $('customize-tools').onclick=()=>this.openSettings();
     $('find-next').onclick=()=>this.find();$('find-query').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();this.find();}};
@@ -87,7 +93,10 @@ export class ReaderTools {
       section.querySelector('.block-toggle').setAttribute('aria-expanded',String(state.expanded));
       const pin=section.querySelector('.block-pin');pin.textContent=state.pinned?'Unpin':'Pin';pin.setAttribute('aria-pressed',String(state.pinned));
     }
-    this.availability();
+    this.syncRichPanels();this.availability();
+  }
+  syncRichPanels(){
+    this.rich?.tool('panels',{blocks:Object.fromEntries(BLOCKS.map(({id})=>[id,!this.mode&&this.preferences[id].visible&&this.preferences[id].expanded]))});
   }
   availability(){
     const adapter=ADAPTERS[this.target];
@@ -124,7 +133,7 @@ export class ReaderTools {
   openSettings(scope='book'){this.settingsDraft=structuredClone(scope==='defaults'?effectivePreferences({defaults:this.profile.defaults}):this.preferences);$('preference-scope').querySelector('[value=book]').disabled=!this.context().book;$('preference-scope').value=scope;this.settingsOptions();$('tools-dialog').showModal();}
   settingsOptions(){
     $('block-options').replaceChildren();
-    for(const block of BLOCKS){const label=text('label',block.label),checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.checked=this.settingsDraft[block.id].visible;checkbox.onchange=()=>{this.settingsDraft[block.id].visible=checkbox.checked;};label.prepend(checkbox);$('block-options').append(label);}
+    for(const block of BLOCKS){this.settingsDraft[block.id]??=structuredClone(preset()[block.id]);const label=text('label',block.label),checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.checked=this.settingsDraft[block.id].visible;checkbox.onchange=()=>{this.settingsDraft[block.id].visible=checkbox.checked;};label.prepend(checkbox);$('block-options').append(label);}
   }
   async saveSettings(reset){
     const scope=$('preference-scope').value,id=this.context().book?.id;

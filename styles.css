@@ -360,3 +360,19 @@ body:not(.studio-open) main{padding-top:10px}#notice.quiet-sync{display:none}#no
 #library-view .book .article-title:hover{color:#137333;text-decoration:underline;background:#f5f8f5}
 @media(min-width:901px){#library-view .sheet-columns,#library-view .book{grid-template-columns:minmax(260px,2.4fr) minmax(135px,.8fr) minmax(165px,1fr) minmax(130px,.6fr)}}
 @media(max-width:900px){#library-view .library-collection-group .book>h2{padding-left:32px}#library-view .library-collection-group>summary{padding-left:16px}}
+
+/* Compact workspace header and a single row of tool blocks. */
+.header-tool-settings{position:relative;order:8}.header-tool-settings>summary{cursor:pointer;list-style:none;padding:6px 10px;border:1px solid var(--border);border-radius:5px;background:white}.header-tool-settings[open]{z-index:120}.header-tool-settings[open]>#tool-scope-label,.header-tool-settings[open]>#customize-tools{position:absolute;right:0;top:38px;width:220px;padding:12px;background:white;border:1px solid var(--border);box-shadow:0 3px 8px #0002}.header-tool-settings[open]>#customize-tools{top:78px}.header-tool-settings:not([open])>:not(summary){display:none}
+.workspace-heading #reading-mode{font-size:12px}.workspace-heading #account-button{order:10;margin-left:2px}.workspace-heading #save{order:6}.workspace-heading #studio-extras{order:4;margin-left:0}.workspace-heading #reading-mode{order:5}
+body.studio-open #reader-tools{padding:5px 8px;overflow:auto;max-height:35dvh}body.studio-open #reader-tools .tool-blocks{gap:4px;flex-wrap:nowrap}body.studio-open #reader-tools .tool-block{flex:1 0 auto}body.studio-open #reader-tools .tool-block:has(.block-body:not([hidden])){flex:2 0 260px}body.studio-open #reader-tools .block-heading{padding:0}body.studio-open .workspace-heading{display:flex;flex-wrap:wrap;min-height:42px;gap:6px}body.studio-open .workspace-heading #save-status{order:0;flex:1;flex-basis:auto}body.studio-open #reader-tools .block-body{max-width:520px}
+@media(max-width:760px){body.studio-open #reader-tools .tool-blocks{flex-wrap:wrap}body.studio-open #reader-tools .tool-block{flex:1 1 145px}body.studio-open .workspace-heading button{min-height:34px;padding:5px 8px;font-size:12px}body.studio-open .workspace-heading #save-status{font-size:10px}body.studio-open .workspace-heading #account-button{margin-left:auto}body.studio-open #reader-tools{max-height:32dvh}}
+/* Expanded host controls form compact full-width trays below the block headings. */
+body.studio-open #reader-tools .tool-blocks{flex-wrap:wrap;align-items:center}
+body.studio-open #reader-tools .tool-block{display:contents}
+body.studio-open #reader-tools .tool-block[hidden]{display:none}
+body.studio-open #reader-tools .block-heading{flex:1 1 auto;background:#fff;border:1px solid #dce3ed;border-radius:5px}
+body.studio-open #reader-tools .block-body{order:2;flex:1 0 100%;max-width:none;padding:6px 8px;background:#fff;border-radius:5px;align-items:center}
+body.studio-open #reader-tools .block-body:empty{display:none}
+body.studio-open #reader-tools .block-body>.tool-hint{flex-basis:auto;margin:0;font-size:10px}
+body.studio-open #reader-tools .block-body>label{flex:0 1 180px}
+@media(max-width:760px){body.studio-open #reader-tools .block-heading{flex:1 1 145px}body.studio-open #reader-tools .block-body>.tool-hint{display:none}}
