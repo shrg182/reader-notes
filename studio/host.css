@@ -5,7 +5,7 @@ html,body{min-height:100%;background:#f8f9fa}.workspace{max-width:none!important
 body.reader-parent-stack .workspace,body.reader-parent-focus .workspace{grid-template-columns:minmax(0,1fr)!important}body.reader-parent-stack .sidebar{position:static;max-height:none}body.reader-parent-focus .sidebar{display:none!important}
 
 /* Native controls retain their handlers, grouped by the host block selection. */
-body.reader-tools-grouped .reader-grouped-tools{position:static!important;display:flex!important;flex-wrap:wrap!important;gap:6px!important;padding:0!important;border:0!important;min-height:0!important;overflow:visible!important}
+body.reader-tools-grouped .reader-grouped-tools{position:relative!important;z-index:502!important;display:flex!important;flex-wrap:wrap!important;gap:6px!important;padding:0!important;border:0!important;min-height:0!important;overflow:visible!important}
 body.reader-tools-grouped .reader-grouped-tools>[data-reader-panel]{display:flex!important;align-items:center;flex-wrap:wrap;gap:7px;width:100%;padding:9px 12px;background:var(--panel,#edf2fa);border-bottom:1px solid var(--line,#dadce0);box-sizing:border-box}
 body.reader-tools-grouped .reader-grouped-tools>[data-reader-panel][hidden],body.reader-tools-grouped .reader-grouped-tools>[hidden]{display:none!important}
 .reader-grouped-tools>[data-reader-panel]>strong{font:600 12px system-ui;width:100%;color:var(--muted,#5f6368)}
