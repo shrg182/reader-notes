@@ -5,11 +5,11 @@
 Target: existing Reader Notes project `zkffujfbzbxoexohcmwk` only.
 
 1. Apply `supabase/pdf-library.sql` using an authenticated Supabase connection.
-   This is an additive, transactional migration. It creates three owner-only
+   This is an additive, transactional migration. For an existing installation, also apply `supabase/pdf-free-plan.sql` to raise its limit to 50 MiB. It creates three owner-only
    tables, four RPCs, the private `reader-pdfs` bucket and its policies. It does
    not modify or migrate existing articles or device-only reference PDFs.
 2. Confirm the bucket is private, its MIME type is `application/pdf`, and its
-   25 MiB limit is allowed by the project's global storage limit. Check existing
+   50 MiB limit is allowed by the project's global storage limit. Check existing
    Storage policies for broad grants that could override the bucket's policies.
 3. Verify anonymous reads/writes are denied and test with two disposable accounts:
    A can upload/read/trash/restore/remove its PDF; B cannot read or change it.
@@ -27,7 +27,7 @@ Library → Import PDF → choose a file → title → existing or new category 
 The file picker exposes local or cloud-drive locations supported by the device;
 there is no separate iCloud or OneDrive authorization in Reader Notes.
 
-Uploads are limited to 25 MiB. A reserved library item remains `uploading` until
+Uploads are limited to 50 MiB. A reserved library item remains `uploading` until
 Storage confirms the object and its expected size. TUS sends 6 MiB chunks and
 retains the upload address in account-scoped IndexedDB. Pause keeps the file and
 checkpoint; Resume upload uses the saved copy or requests the same file, verified
@@ -107,3 +107,31 @@ by setting the same header in both initial options and onBeforeRequest. Removed
 the initial value so the refreshed user token is set once per request. The PDF
 browser suite now asserts a single exact Authorization value; the fixed upload
 and cloud download both passed live. Published code includes this correction.
+
+## Free-plan reading options — 2026-11-08
+
+The subscription remains Free. `pdf-free-plan.sql` raises only the PDF table
+constraint and the private bucket file-size limit to 52,428,800 bytes. Owner
+policies and MIME restrictions remain unchanged. No paid plan or billing change.
+
+Import PDF now offers Save to cloud (up to 50 MiB) or Read on this device (up to
+150 MiB). A file over the cloud limit automatically selects the device option.
+Choose a downloaded file from a local folder, iCloud Drive or OneDrive through
+the native picker. No direct drive connection, background drive access, or cloud
+upload is performed for device-only PDFs. A separate help section explains that
+compression or splitting into files below 50 MiB is an alternative for cloud sync.
+
+Device entries, categories, notes, and reading position remain account-scoped on
+this browser. Source File objects are retained for the current session. Without
+Keep a browser copy, reopening the app requires selecting the source file again;
+size plus a bounded sample fingerprint checks reselection. With Keep a browser
+copy, IndexedDB stores the bytes for offline reopening, subject to browser
+storage availability. A quota error suggests reopening without a browser copy.
+Neither mode modifies or deletes the source file in its original folder/drive.
+Sign-out explicitly warns before clearing account device-only entries and notes.
+
+The PDF.js viewer now serves bounded ranges from Blob/File objects, rather than
+allocating an array buffer for the entire file before rendering. The browser test
+uses a sparse 125 MiB PDF and verifies rendering, source reselection, optional
+browser storage, retained notes, trash/restore/removal, bounded reads, and no
+cloud file or category creation.

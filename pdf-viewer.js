@@ -14,7 +14,18 @@ export class PdfViewer{
   this.close();const generation=this.generation;this.$('pdf-view-status').textContent='Loading PDF…';
   this.library=await import('./vendor/pdfjs/pdf.mjs');
   this.library.GlobalWorkerOptions.workerSrc=new URL('./vendor/pdfjs/pdf.worker.mjs',import.meta.url).href;
-  const task=this.library.getDocument({data:new Uint8Array(await blob.arrayBuffer()),isEvalSupported:false,
+  // Read bounded slices from local/browser blobs instead of copying a 125 MB
+  // file into memory before the first page. PDF.js requests the needed ranges.
+  const initial=new Uint8Array(await blob.slice(0,65536).arrayBuffer());
+  if(generation!==this.generation)return;
+  const Transport=this.library.PDFDataRangeTransport,onError=this.onError;
+  let task;
+  class BlobTransport extends Transport{
+   constructor(){super(blob.size,initial,true);this.aborted=false;}
+   requestDataRange(begin,end){void blob.slice(begin,end).arrayBuffer().then(buffer=>{if(!this.aborted)this.onDataRange(begin,new Uint8Array(buffer));}).catch(error=>{if(!this.aborted){onError(error);void task?.destroy();}});}
+   abort(){this.aborted=true;}
+  }
+  task=this.library.getDocument({range:new BlobTransport(),length:blob.size,rangeChunkSize:65536,disableAutoFetch:true,disableStream:true,isEvalSupported:false,
    cMapUrl:new URL('./vendor/pdfjs/cmaps/',import.meta.url).href,cMapPacked:true,
    standardFontDataUrl:new URL('./vendor/pdfjs/standard_fonts/',import.meta.url).href,
    wasmUrl:new URL('./vendor/pdfjs/wasm/',import.meta.url).href});

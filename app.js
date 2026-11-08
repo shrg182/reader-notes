@@ -75,7 +75,7 @@ async function loadScope(){
   ready=false;rich.close();pdfLibrary.reset();
   const next=cloud.session?`account:${cloud.session.user.id}`:'local';
   await acquireLock(next);
-  activityToken++;readingActivity={};originalActivity={};libraryExpansion.clear();scope=next;lastSync=await db.getSetting(`last-sync:${scope}`)||null;pdfBooks=new Set((await db.listAssets(scope)).filter(a=>!a.key.slice(scope.length+1).startsWith('cloud-pdf:')).map(a=>a.key.slice(scope.length+1)));books=await db.listBooks(scope);active=null;unsaved=false;closePdf();
+  activityToken++;readingActivity={};originalActivity={};libraryExpansion.clear();scope=next;lastSync=await db.getSetting(`last-sync:${scope}`)||null;pdfBooks=new Set((await db.listAssets(scope)).filter(a=>!['cloud-pdf:','device-pdf:'].some(prefix=>a.key.slice(scope.length+1).startsWith(prefix))).map(a=>a.key.slice(scope.length+1)));books=await db.listBooks(scope);active=null;unsaved=false;closePdf();
   sharing.reset();migration.reset();
   for(const id of ['title','language','content','notes'])$(id).value='';
   $('review-dialog').close();$('review-body').replaceChildren();$('review-actions').replaceChildren();
@@ -103,12 +103,12 @@ function render(){
     for(const row of ordered){
       const book=row.book;shown++;const card=node('article','','book');
       const title=node('h2');if(trash)title.textContent=catalogTitle(row.title,group.collectionTitle);else{const link=button(catalogTitle(row.title,group.collectionTitle),()=>book.kind==='pdf'?pdfLibrary.open(book.id):openBook(book.id));link.className='article-title';link.title=row.title;title.append(link);}
-      const reading=node('p',book.kind==='pdf'?(book.completed?'Read · PDF':book.status==='uploading'?'PDF · Upload incomplete':'PDF · Page '+(pdfLibrary.records.find(r=>r.id===book.id)?.last_page||1)):activityText(row));reading.title='Original imported history plus visits on this browser. New visit counts remain on this device.';
+      const reading=node('p',book.kind==='pdf'?(book.completed?'Read · PDF':book.status==='uploading'?'PDF · Upload incomplete':'PDF · Page '+(pdfLibrary.findRecord(book.id)?.last_page||1)):activityText(row));reading.title='Original imported history plus visits on this browser. New visit counts remain on this device.';
       const editing=originalActivity['reading-workspace-editing-history-v1']?.[row.path];
       const lastEdit=book.history?.length?book.updatedAt:editing?.lastEdited;
-      const save=node('p',book.kind==='pdf'?(book.status==='uploading'?'Upload paused or incomplete':book.status==='deleting'?'Deletion incomplete · retry in Trash':'Private cloud PDF'):(lastEdit?'Edited '+new Date(lastEdit).toLocaleDateString():'Editing history not recorded')+' · '+(book.conflict?'Conflict needs review':book.dirty?(cloud.session?'Waiting to sync':'Saved on device'):'Synced'));
+      const save=node('p',book.kind==='pdf'?(book.deviceOnly?'On this device only':book.status==='uploading'?'Upload paused or incomplete':book.status==='deleting'?'Deletion incomplete · retry in Trash':'Private cloud PDF'):(lastEdit?'Edited '+new Date(lastEdit).toLocaleDateString():'Editing history not recorded')+' · '+(book.conflict?'Conflict needs review':book.dirty?(cloud.session?'Waiting to sync':'Saved on device'):'Synced'));
       card.append(title,reading,save);const actions=node('div','','actions');
-      if(book.kind==='pdf'){const record=pdfLibrary.records.find(r=>r.id===book.id);if(trash){if(record.status==='ready')actions.append(button('Restore PDF',()=>pdfLibrary.restore(record)));actions.append(button(record.status==='deleting'?'Retry permanent deletion':'Delete permanently',()=>pdfLibrary.confirmDelete(record)));}else{if(record.status==='uploading')actions.append(button('Resume upload',()=>pdfLibrary.openImport(record)));else actions.append(button('Details & category',()=>pdfLibrary.edit(record)));actions.append(button('Move to trash',()=>pdfLibrary.trash(record)));}}
+      if(book.kind==='pdf'){const record=pdfLibrary.findRecord(book.id);if(trash){if(record.status==='ready')actions.append(button('Restore PDF',()=>pdfLibrary.restore(record)));actions.append(button(record.status==='deleting'?'Retry permanent deletion':'Delete permanently',()=>pdfLibrary.confirmDelete(record)));}else{if(record.status==='uploading')actions.append(button('Resume upload',()=>pdfLibrary.openImport(record)));else actions.append(button('Details & category',()=>pdfLibrary.edit(record)));actions.append(button('Move to trash',()=>pdfLibrary.trash(record)));}}
       else if(trash)actions.append(button('Restore article',async()=>{await changeBook(book,{deleted:false});await sync();}));
       else actions.append(button('Sharing',async()=>{await openBook(book.id);await sharing.openOwn();}));
 
@@ -229,7 +229,7 @@ function updateAccount(){
   const pending=books.filter(b=>b.dirty||b.conflict).length+Object.keys(pdfLibrary.drafts).length+(pdfLibrary.uploading?1:0);
   $('sync-indicator').textContent=!navigator.onLine?'Offline':cloud.session?(pending?'Pending':lastSync?'✓ Synced':'Not synced'):'Local';
   $('account-sync-status').textContent=cloud.session?`${lastSync?'Last successful library sync: '+new Date(lastSync).toLocaleString():'No successful library sync recorded on this device.'}${pending?' '+pending+' editions have pending changes or conflicts.':''} Synchronization runs when signing in, saving, or reconnecting.`:'Local library stays on this browser. Sign in to synchronize a separate private account library.';
-  $('account-library-count').textContent=`${articleRows(books.filter(b=>!b.deleted),complete.meta).length} articles · ${books.filter(b=>!b.deleted).length} working editions in ${groupedBooks(books.filter(b=>!b.deleted),complete.meta).length} collections · ${books.filter(b=>b.deleted).length} in trash · ${pdfBooks.size} device-only PDF attachments · ${pdfLibrary.records.filter(r=>r.status==='ready'&&!r.deleted).length} cloud PDFs`;
+  $('account-library-count').textContent=`${articleRows(books.filter(b=>!b.deleted),complete.meta).length} articles · ${books.filter(b=>!b.deleted).length} working editions in ${groupedBooks(books.filter(b=>!b.deleted),complete.meta).length} collections · ${books.filter(b=>b.deleted).length} in trash · ${pdfBooks.size} device-only PDF attachments · ${pdfLibrary.records.filter(r=>r.status==='ready'&&!r.deleted).length} cloud PDFs · ${pdfLibrary.device.records.filter(r=>!r.deleted).length} device-only PDFs`;
   $('account-publications').disabled=!cloud.session||!cloud.sharingReady;
   $('sync-library').disabled=!cloud.session;
 }
@@ -354,7 +354,12 @@ $('sign-out').onclick=()=>run(async()=>{
   const study=await tools.exportStudy(books.map(book=>book.id));
   if(study.vocabulary.length||await sharing.countDrafts()){
     review('Back up personal study data');$('review-body').append(node('p','Vocabulary and contribution drafts may have device-only changes. Export a backup before signing out clears this account’s device cache. Migration source files must be retained separately.'));
+    if(pdfLibrary.device.records.length)$('review-body').append(node('p','Device-only PDF entries, browser copies and their reading notes will also be cleared. PDF notes are not in the article backup; copy any notes you want to retain first. Original files in your folders or drives are unchanged.'));
     $('review-actions').append(button('Export backup & sign out',async()=>{await exportBackup();await finish();$('review-dialog').close();}));return;
+  }
+  if(pdfLibrary.device.records.length){
+    review('Device-only PDFs');$('review-body').append(node('p','Signing out clears this account’s device-only PDF entries, browser copies and reading notes. Original files in your folders, iCloud Drive or OneDrive are unchanged. Copy any reading notes you want to keep before signing out.'));
+    $('review-actions').append(button('Keep account open',()=>{$('review-dialog').close();$('account-dialog').close();}),button('Sign out & clear device copies',async()=>{await finish();$('review-dialog').close();}));return;
   }
   await finish();
 });

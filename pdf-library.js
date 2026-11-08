@@ -1,15 +1,16 @@
+import {DevicePdfs} from './device-pdfs.js';
 import {PdfCloud} from './pdf-cloud.js';
 import {PdfViewer} from './pdf-viewer.js';
-import {pdfBook,validatePdf,pdfFingerprint} from './pdf-library-model.js';
+import {pdfBook,validatePdf,pdfFingerprint,PDF_MAX_BYTES} from './pdf-library-model.js';
 import {TAXONOMY} from './library-taxonomy.js';
 import * as db from './storage.js';
 const $=id=>document.getElementById(id);
 const element=(tag,text)=>{const node=document.createElement(tag);node.textContent=text;return node;};
 export class PdfLibrary{
  constructor({cloud,context,notify,onChanged,onOpen,onClose,run}){
-  Object.assign(this,{cloud,context,notify,onChanged,onOpen,onClose,run});this.mutation=0;this.api=new PdfCloud(cloud);this.records=[];this.categories=[];this.assignments=[];this.drafts={};this.generation=0;
+  Object.assign(this,{cloud,context,notify,onChanged,onOpen,onClose,run});this.device=new DevicePdfs();this.mutation=0;this.api=new PdfCloud(cloud);this.records=[];this.categories=[];this.assignments=[];this.drafts={};this.generation=0;
   const importDialog=document.createElement('dialog');importDialog.id='pdf-import-dialog';
-  importDialog.innerHTML=`<form id="pdf-import-form"><div class="dialog-heading"><h2>Import PDF</h2><button type="button" id="pdf-import-close" aria-label="Close PDF import">×</button></div><p>Choose a PDF from this device, iCloud Drive, OneDrive, or another location available in your file picker. Up to 25 MB.</p><label>PDF file<input id="pdf-import-file" type="file" accept=".pdf,application/pdf" required></label><label>Title<input id="pdf-import-title" maxlength="200" required></label><label>Category<select id="pdf-import-category" required></select></label><label id="pdf-new-category-label" hidden>New category name<input id="pdf-new-category" maxlength="120"></label><progress id="pdf-upload-progress" max="100" value="0" hidden></progress><p id="pdf-upload-status" role="status"></p><div class="actions"><button id="pdf-import-submit" class="primary">Import PDF</button><button id="pdf-upload-cancel" type="button" hidden>Pause upload</button></div></form>`;
+  importDialog.innerHTML=`<form id="pdf-import-form"><div class="dialog-heading"><h2>Import PDF</h2><button type="button" id="pdf-import-close" aria-label="Close PDF import">×</button></div><p>Choose a PDF from this device, iCloud Drive, OneDrive, or another location available in your file picker. Cloud uploads: up to 50 MB on the free plan. Larger PDFs can be read on this device.</p><label>Reading option<select id="pdf-import-storage"><option value="cloud">Save to cloud · up to 50 MB</option><option value="device">Read on this device · up to 150 MB</option></select></label><p id="pdf-import-mode-hint" class="muted"></p><label id="pdf-keep-device-label" hidden><input id="pdf-keep-device" type="checkbox"> Keep a browser copy for later offline reading</label><details id="pdf-large-options"><summary>Options for large PDFs</summary><p>Read the original from your local folder, iCloud Drive or OneDrive using the device option. To synchronize it through the free cloud plan, first compress it or split it into PDF files of 50 MB or less, then import those files separately.</p><p>The file must be downloaded and available through your device’s file picker. Selecting a drive location does not connect that cloud service to Reader Notes.</p></details><label>PDF file<input id="pdf-import-file" type="file" accept=".pdf,application/pdf" required></label><label>Title<input id="pdf-import-title" maxlength="200" required></label><label>Category<select id="pdf-import-category" required></select></label><label id="pdf-new-category-label" hidden>New category name<input id="pdf-new-category" maxlength="120"></label><progress id="pdf-upload-progress" max="100" value="0" hidden></progress><p id="pdf-upload-status" role="status"></p><div class="actions"><button id="pdf-import-submit" class="primary">Import PDF</button><button id="pdf-upload-cancel" type="button" hidden>Pause upload</button></div></form>`;
   const editDialog=document.createElement('dialog');editDialog.id='pdf-edit-dialog';editDialog.innerHTML=`<form id="pdf-edit-form"><div class="dialog-heading"><h2 id="pdf-edit-heading">PDF details</h2><button id="pdf-edit-close" type="button" aria-label="Close details">×</button></div><label id="pdf-edit-title-label">Title<input id="pdf-edit-title" maxlength="200" required></label><label>Category<select id="pdf-edit-category" required></select></label><label id="pdf-edit-new-label" hidden>New category name<input id="pdf-edit-new" maxlength="120"></label><p id="pdf-edit-status" role="status"></p><button class="primary">Save changes</button></form>`;
   document.body.append(importDialog,editDialog);
   const workspace=document.createElement('section');workspace.id='pdf-workspace';workspace.hidden=true;
@@ -17,11 +18,12 @@ export class PdfLibrary{
   document.querySelector('main').append(workspace);
   this.viewer=new PdfViewer($('pdf-reader'),{onPage:page=>this.queuePatch({last_page:page}),onError:error=>this.notify(error.message,true)});
   $('import-pdf').onclick=()=>this.run(()=>this.openImport());
-  $('pdf-import-file').onchange=()=>{const file=$('pdf-import-file').files[0];if(file)$('pdf-import-title').value=file.name.replace(/\.pdf$/i,'').slice(0,200);};
+  $('pdf-import-file').onchange=()=>{const file=$('pdf-import-file').files[0];if(file){$('pdf-import-title').value=file.name.replace(/\.pdf$/i,'').slice(0,200);if(!this.pendingImport&&file.size>PDF_MAX_BYTES)$('pdf-import-storage').value='device';this.paintImportMode();}};
+  $('pdf-import-storage').onchange=()=>this.paintImportMode();
   $('pdf-import-category').onchange=()=>this.toggleNew('import');$('pdf-edit-category').onchange=()=>this.toggleNew('edit');
   $('pdf-import-form').onsubmit=e=>{e.preventDefault();void this.importFile().catch(error=>{$('pdf-upload-status').textContent=error.message;this.notify(error.message,true);});};
-  $('pdf-import-close').onclick=()=>{if(this.uploading){this.uploadController.abort();return;}$('pdf-import-dialog').close();};
-  $('pdf-import-dialog').addEventListener('cancel',e=>{if(this.uploading){e.preventDefault();this.uploadController.abort();}});
+  $('pdf-import-close').onclick=()=>{if(this.uploading){this.uploadController?.abort();return;}$('pdf-import-dialog').close();};
+  $('pdf-import-dialog').addEventListener('cancel',e=>{if(this.uploading){e.preventDefault();this.uploadController?.abort();}});
   $('pdf-upload-cancel').onclick=()=>this.uploadController?.abort();
   $('pdf-edit-close').onclick=()=>$('pdf-edit-dialog').close();
   $('pdf-edit-form').onsubmit=e=>{e.preventDefault();this.run(()=>this.saveDetails());};
@@ -30,20 +32,22 @@ export class PdfLibrary{
   $('pdf-completed').onclick=()=>this.run(async()=>{await this.flush();const record=await this.change(this.active,'update',{completed:!this.active.completed});this.paint(record);if(record.completed)this.notify('Marked as read. Keep this PDF or move it to trash when you are ready.');});
   $('pdf-trash').onclick=()=>this.run(()=>this.trash(this.active));
   $('pdf-download-original').onclick=()=>this.run(()=>this.download());
-  $('pdf-remove-offline').onclick=()=>this.run(async()=>{await db.deleteAsset(this.owner,'cloud-pdf:'+this.active.id);$('pdf-library-status').textContent='Offline copy removed. The cloud PDF is kept; this open page remains available until you leave.';});
+  $('pdf-remove-offline').onclick=()=>this.run(async()=>{if(this.active.storage==='device'){this.active=await this.device.removeCopy(this.active);this.onChanged();$('pdf-library-status').textContent='Browser copy removed. The file remains available for this session; select its source again after reloading or reopening.';return;}await db.deleteAsset(this.owner,'cloud-pdf:'+this.active.id);$('pdf-library-status').textContent='Offline copy removed. The cloud PDF is kept; this open page remains available until you leave.';});
   $('pdf-reading-notes').oninput=()=>this.queuePatch({notes:$('pdf-reading-notes').value});
  }
  get enabled(){return this.cloud.config.pdfLibraryEnabled===true;}
  get available(){return this.enabled&&Boolean(this.cloud.session);}
  get key(){return `pdf-library:${this.owner}`;}
- get books(){return this.records.filter(r=>r.status!=='purged').map(r=>pdfBook(r,this.categoryOptions()));}
- categoryOptions(){const built=Object.entries(TAXONOMY.CATEGORIES).map(([id,[title]])=>({id,title}));built.push({id:'personal',title:'My reading materials'},{id:'other',title:'Other reading materials'});const result=new Map(built.map(c=>[c.id,c]));for(const c of this.categories)result.set(c.id,c);return [...result.values()];}
+ get items(){return [...this.records,...this.device.records];}
+ findRecord(id){return this.items.find(r=>r.id===id);}
+ get books(){return this.items.filter(r=>r.status!=='purged').map(r=>pdfBook(r,this.categoryOptions()));}
+ categoryOptions(){const built=Object.entries(TAXONOMY.CATEGORIES).map(([id,[title]])=>({id,title}));built.push({id:'personal',title:'My reading materials'},{id:'other',title:'Other reading materials'});const result=new Map(built.map(c=>[c.id,c]));for(const c of this.categories)result.set(c.id,c);for(const record of this.device.records)if(!result.has(record.category_id))result.set(record.category_id,{id:record.category_id,title:record.category_title});return [...result.values()];}
  async activate(){
-  this.reset();this.owner=this.context().scope;const cached=await db.getSetting(this.key);
+  this.reset();this.owner=this.context().scope;await this.device.activate(this.owner);const cached=await db.getSetting(this.key);
   if(cached){this.records=cached.records||[];this.categories=cached.categories||[];this.assignments=cached.assignments||[];}
   this.drafts=await db.getSetting(`pdf-drafts:${this.owner}`)||{};
  }
- reset(){this.generation++;this.uploadController?.abort();this.downloadController?.abort();this.close();this.records=[];this.categories=[];this.assignments=[];this.drafts={};this.pendingImport=null;for(const id of ['pdf-import-dialog','pdf-edit-dialog'])$(id).close();}
+ reset(){this.generation++;this.device.reset();this.uploadController?.abort();this.downloadController?.abort();this.close();this.records=[];this.categories=[];this.assignments=[];this.drafts={};this.pendingImport=null;for(const id of ['pdf-import-dialog','pdf-edit-dialog'])$(id).close();}
  async persist(){await db.setSetting(this.key,{records:this.records,categories:this.categories,assignments:this.assignments});this.onChanged();}
  async refresh(){
   if(!this.available)return;const generation=this.generation,mutation=this.mutation,snapshot=await this.api.snapshot();if(generation!==this.generation||mutation!==this.mutation)return;
@@ -52,7 +56,7 @@ export class PdfLibrary{
    await db.deleteAsset(this.owner,'cloud-pdf:'+record.id);await db.setSetting(`pdf-upload:${this.owner}:${record.id}`,null);delete this.drafts[record.id];
   }
   await db.setSetting(`pdf-drafts:${this.owner}`,this.drafts);await this.persist();
-  if(this.active){const next=this.records.find(r=>r.id===this.active.id);if(!next||next.deleted||next.status!=='ready'){this.close();this.onClose();this.notify('This PDF was removed on another device.');}
+  if(this.active&&this.active.storage!=='device'){const next=this.records.find(r=>r.id===this.active.id);if(!next||next.deleted||next.status!=='ready'){this.close();this.onClose();this.notify('This PDF was removed on another device.');}
    else if(!this.drafts[next.id]){this.active=next;this.paint(next);}}
  }
  async ensureCategory(id,title){
@@ -62,27 +66,38 @@ export class PdfLibrary{
   select.replaceChildren();for(const c of this.categoryOptions())select.add(new Option(c.title,c.id));select.add(new Option('+ New category','__new__'));select.value=value;
  }
  toggleNew(mode){const isNew=$(`pdf-${mode}-category`).value==='__new__';const label=mode==='import'?$('pdf-new-category-label'):$('pdf-edit-new-label'),input=mode==='import'?$('pdf-new-category'):$('pdf-edit-new');label.hidden=!isNew;input.required=isNew;}
- async selectedCategory(mode){
+ async selectedCategory(mode,{device=false}={}){
   const id=$(`pdf-${mode}-category`).value;
   if(id==='__new__'){
    const title=(mode==='import'?$('pdf-new-category'):$('pdf-edit-new')).value.trim();if(!title)throw Error('Enter a category name.');
-   const existing=this.categoryOptions().find(c=>c.title.toLocaleLowerCase()===title.toLocaleLowerCase());return this.ensureCategory(existing?.id||crypto.randomUUID(),existing?.title||title);
+   const existing=this.categoryOptions().find(c=>c.title.toLocaleLowerCase()===title.toLocaleLowerCase());const category={id:existing?.id||crypto.randomUUID(),title:existing?.title||title};return device?category:this.ensureCategory(category.id,category.title);
   }
-  const value=this.categoryOptions().find(c=>c.id===id);if(!value)throw Error('Choose a category.');return this.ensureCategory(value.id,value.title);
+  const value=this.categoryOptions().find(c=>c.id===id);if(!value)throw Error('Choose a category.');return device?value:this.ensureCategory(value.id,value.title);
  }
  requireCloud(){if(!this.cloud.session)throw Error('Sign in through My Account to import and synchronize PDFs.');if(!this.enabled)throw Error('Cloud PDF storage needs its database setup before it can be used.');}
  async openImport(record=null){
-  this.requireCloud();if(this.uploading)throw Error('Finish or pause the current upload first.');
-  await this.refresh();if(record){record=this.records.find(r=>r.id===record.id);if(record?.status==='ready'&&!record.deleted)return this.open(record.id);if(!record||record.deleted||record.status!=='uploading')throw Error('This upload is no longer available. Refresh the library.');}this.pendingImport=record;this.resumeFile=null;
-  $('pdf-import-form').reset();this.categorySelect($('pdf-import-category'),record?.category_id||$('library-category').value||'personal');this.toggleNew('import');
-  $('pdf-upload-progress').hidden=true;$('pdf-upload-status').textContent=record?'Choose the same PDF to resume this upload.':'';
+  if(record?.storage!=='device'&&record)this.requireCloud();if(this.uploading)throw Error('Finish or pause the current upload first.');
+  if(record?.storage!=='device')await this.refresh();if(record?.storage==='device'){this.pendingImport=record;this.resumeFile=null;}else if(record){record=this.records.find(r=>r.id===record.id);if(record?.status==='ready'&&!record.deleted)return this.open(record.id);if(!record||record.deleted||record.status!=='uploading')throw Error('This upload is no longer available. Refresh the library.');}this.pendingImport=record;this.resumeFile=null;
+  $('pdf-import-form').reset();$('pdf-import-storage').querySelector('[value=cloud]').disabled=!this.available;$('pdf-import-storage').value=record?.storage==='device'||!this.available?'device':'cloud';$('pdf-import-storage').disabled=Boolean(record);this.paintImportMode();this.categorySelect($('pdf-import-category'),record?.category_id||$('library-category').value||'personal');this.toggleNew('import');
+  $('pdf-upload-progress').hidden=true;$('pdf-import-file').required=true;$('pdf-upload-status').textContent=record?.storage==='device'?'Choose the source PDF from its folder to reopen this device-only entry.':record?'Choose the same PDF to resume this upload.':'';
   $('pdf-import-title').value=record?.title||'';$('pdf-import-title').readOnly=Boolean(record);$('pdf-import-category').disabled=Boolean(record);this.setUploading(false);
   $('pdf-import-dialog').showModal();
-  if(record){const cached=await db.getAsset(this.owner,'cloud-pdf:'+record.id);if(cached?.file){this.resumeFile=cached.file;$('pdf-import-file').required=false;$('pdf-upload-status').textContent='The PDF is available on this device. Click Import PDF to resume.';}}
+  if(record&&record.storage!=='device'){const cached=await db.getAsset(this.owner,'cloud-pdf:'+record.id);if(cached?.file){this.resumeFile=cached.file;$('pdf-import-file').required=false;$('pdf-upload-status').textContent='The PDF is available on this device. Click Import PDF to resume.';}}
  }
- setUploading(value){this.uploading=value;for(const id of ['pdf-import-file','pdf-import-title','pdf-import-category','pdf-new-category','pdf-import-submit'])$(id).disabled=value||(id==='pdf-import-category'&&Boolean(this.pendingImport));$('pdf-upload-cancel').hidden=!value;}
+ paintImportMode(){const device=$('pdf-import-storage').value==='device';$('pdf-keep-device-label').hidden=!device;$('pdf-import-mode-hint').textContent=device?'PDF and notes stay on this browser/device and do not sync. Without a browser copy, select the source file again after reloading or reopening the app.':'The PDF, category and reading notes synchronize to your private account. Sign in to use cloud uploads.';$('pdf-import-submit').textContent=device?'Open PDF':'Import PDF';}
+ setUploading(value){this.uploading=value;for(const id of ['pdf-import-storage','pdf-keep-device','pdf-import-file','pdf-import-title','pdf-import-category','pdf-new-category','pdf-import-submit'])$(id).disabled=value||(['pdf-import-category','pdf-import-storage'].includes(id)&&Boolean(this.pendingImport));$('pdf-upload-cancel').hidden=!value||$('pdf-import-storage').value==='device';}
+ async openDeviceFile(file){
+  const generation=this.generation;this.setUploading(true);
+  try{const existing=this.pendingImport?.storage==='device'?this.pendingImport:null;
+   const category=existing?{id:existing.category_id,title:existing.category_title}:await this.selectedCategory('import',{device:true});
+   const record=await this.device.add(file,{title:$('pdf-import-title').value.trim()||file.name.slice(0,200),category},$('pdf-keep-device').checked,existing);
+   if(generation!==this.generation)return;
+   this.onChanged();$('pdf-import-dialog').close();this.pendingImport=null;await this.open(record.id);
+  }catch(error){if(error.name==='QuotaExceededError')throw Error('Not enough browser storage. Uncheck Keep a browser copy and open the PDF again.');throw error;}finally{if(generation===this.generation)this.setUploading(false);}
+ }
  async importFile(){
-  if(this.uploading)return;this.requireCloud();const file=$('pdf-import-file').files[0]||this.resumeFile;await validatePdf(file);
+  if(this.uploading)return;const device=$('pdf-import-storage').value==='device';if(!device)this.requireCloud();const file=$('pdf-import-file').files[0]||this.resumeFile;await validatePdf(file,{device});
+  if(device){await this.openDeviceFile(file);return;}
   const generation=this.generation,owner=this.owner;let record=this.pendingImport;
   this.setUploading(true);this.uploadController=new AbortController();$('pdf-upload-progress').hidden=false;$('pdf-upload-progress').value=0;$('pdf-upload-status').textContent='Preparing upload…';
   const check=()=>{if(generation!==this.generation||this.uploadController.signal.aborted)throw new DOMException('Upload paused','AbortError');};
@@ -104,20 +119,20 @@ export class PdfLibrary{
   finally{if(generation===this.generation)this.setUploading(false);}
  }
  async open(id){
-  await this.flush();const record=this.records.find(r=>r.id===id);if(!record||record.deleted)throw Error('PDF unavailable.');if(record.status!=='ready')return this.openImport(record);
-  await this.onOpen();this.close();this.active=record;this.paint(record);$('pdf-workspace').hidden=false;document.body.classList.add('pdf-open');
+  const openingGeneration=this.generation;await this.flush();if(openingGeneration!==this.generation)return;const record=this.findRecord(id);if(!record||record.deleted)throw Error('PDF unavailable.');if(record.status!=='ready')return this.openImport(record);if(record.storage==='device'&&!await this.device.file(record))return this.openImport(record);
+  if(openingGeneration!==this.generation)return;await this.onOpen();if(openingGeneration!==this.generation)return;this.close();this.active=record;this.paint(record);$('pdf-workspace').hidden=false;document.body.classList.add('pdf-open');
   const generation=this.generation,request=++this.openRequest;this.downloadController=new AbortController();
   $('pdf-library-status').textContent='Loading PDF…';
-  try{let blob=(await db.getAsset(this.owner,'cloud-pdf:'+id))?.file;
+  try{let blob=record.storage==='device'?await this.device.file(record):(await db.getAsset(this.owner,'cloud-pdf:'+id))?.file;
    if(!blob){this.requireCloud();blob=await this.api.file(record,{signal:this.downloadController.signal});if(request!==this.openRequest||generation!==this.generation)return;await db.putAsset(this.owner,'cloud-pdf:'+id,blob);}
    if(request!==this.openRequest||generation!==this.generation)return;
-   this.blob=blob;await this.viewer.open(blob,record.last_page);$('pdf-library-status').textContent=navigator.onLine?'Private cloud PDF · offline copy available on this device':'Offline copy · changes will sync when connected';
+   this.blob=blob;await this.viewer.open(blob,record.last_page);$('pdf-library-status').textContent=record.storage==='device'?(record.kept?'Device-only PDF · browser copy saved · no cloud upload':'Device-only PDF · select the source file again after reopening · no cloud upload'):navigator.onLine?'Private cloud PDF · offline copy available on this device':'Offline copy · changes will sync when connected';
   }catch(error){if(request===this.openRequest&&generation===this.generation&&error.name!=='AbortError'){$('pdf-library-status').textContent='Could not open PDF. Return to Library and retry.';throw error;}}
  }
- paint(record){$('pdf-library-title').textContent=record.title;$('pdf-completed').textContent=record.completed?'Mark as unread':'Mark as read';$('pdf-reading-notes').value=this.drafts[record.id]?.patch?.notes??record.notes;}
+ paint(record){$('pdf-remove-offline').hidden=record.storage==='device'&&!record.kept;$('pdf-library-title').textContent=record.title;$('pdf-completed').textContent=record.completed?'Mark as unread':'Mark as read';$('pdf-reading-notes').value=this.drafts[record.id]?.patch?.notes??record.notes;}
  close(){clearTimeout(this.noteTimer);this.openRequest=(this.openRequest||0)+1;this.downloadController?.abort();this.viewer.close();this.active=null;this.blob=null;$('pdf-workspace').hidden=true;document.body.classList.remove('pdf-open');$('pdf-reading-notes').value='';}
  queuePatch(patch){
-  if(!this.active)return;const old=this.drafts[this.active.id];this.drafts[this.active.id]={revision:old?.revision??this.active.revision,patch:{...old?.patch,...patch}};
+  if(!this.active)return;if(this.active.storage==='device'){this.draftWrite=this.change(this.active,'update',patch).then(next=>{if(this.active?.id===next.id)this.active=next;$('pdf-notes-status').textContent='Notes and reading position saved on this device only';}).catch(error=>this.notify(error.message,true));return;}const old=this.drafts[this.active.id];this.drafts[this.active.id]={revision:old?.revision??this.active.revision,patch:{...old?.patch,...patch}};
   this.draftWrite=db.setSetting(`pdf-drafts:${this.owner}`,this.drafts);$('pdf-notes-status').textContent='Saved on this device · waiting to sync';
   clearTimeout(this.noteTimer);this.noteTimer=setTimeout(()=>this.flush().catch(error=>{$('pdf-notes-status').textContent=error.message;}),900);
  }
@@ -148,30 +163,32 @@ export class PdfLibrary{
   }dialog.showModal();
  }
  async change(record,action,patch={}){
+  if(record.storage==='device'){const next=await this.device.change(this.device.find(record.id),action,patch);if(this.active?.id===next.id)this.active=next;this.onChanged();return next;}
   this.requireCloud();const generation=this.generation;
   try{this.mutation++;const next=await this.api.change(record,action,patch);this.mutation++;if(generation!==this.generation)throw Error('Account changed.');this.records=this.records.map(r=>r.id===next.id?next:r);if(this.active?.id===next.id)this.active=next;await this.persist();return next;}
   catch(error){if(generation===this.generation)await this.refresh().catch(()=>{});throw error;}
  }
- async trash(record){await this.flush();record=this.records.find(r=>r.id===record.id);await this.change(record,'trash');if(this.active?.id===record.id){this.close();this.onClose();}this.notify('PDF moved to trash. It still uses cloud storage until permanently deleted.');}
+ async trash(record){await this.flush();record=this.findRecord(record.id);await this.change(record,'trash');if(this.active?.id===record.id){this.close();this.onClose();}this.notify(record.storage==='device'?'PDF moved to device-only trash. The original source file is unchanged.':'PDF moved to trash. It still uses cloud storage until permanently deleted.');}
  async restore(record){await this.change(record,'restore');this.notify('PDF restored.');}
  confirmDelete(record){
-  $('review-title').textContent='Permanently delete PDF?';$('review-body').replaceChildren(element('p',`Delete “${record.title}”, its original PDF and private reading notes from your account? This cannot be undone. Offline copies on other devices are removed the next time they synchronize.`));$('review-actions').replaceChildren();
+  $('review-title').textContent='Permanently delete PDF?';$('review-body').replaceChildren(element('p',record.storage==='device'?`Remove “${record.title}”, its browser copy and device-only reading notes? This cannot be undone. The original file in your folder, iCloud Drive or OneDrive is unchanged.`:`Delete “${record.title}”, its original PDF and private reading notes from your account? This cannot be undone. Offline copies on other devices are removed the next time they synchronize.`));$('review-actions').replaceChildren();
   const cancel=element('button','Cancel');cancel.onclick=()=>$('review-dialog').close();const remove=element('button','Delete permanently');remove.className='danger';remove.onclick=()=>this.run(async()=>{await this.purge(record);$('review-dialog').close();});$('review-actions').append(cancel,remove);$('review-dialog').showModal();
  }
  async purge(record){
+  if(record.storage==='device'){await this.device.purge(record);this.onChanged();this.notify('Device-only PDF entry and browser copy removed. The original source file is unchanged.');return;}
   if(record.status!=='deleting')record=await this.change(record,'begin_delete');
   await this.api.remove(record);const next=await this.change(record,'finish_delete');
   await db.deleteAsset(this.owner,'cloud-pdf:'+record.id);await db.setSetting(`pdf-upload:${this.owner}:${record.id}`,null);delete this.drafts[record.id];await db.setSetting(`pdf-drafts:${this.owner}`,this.drafts);await this.persist();this.notify('PDF and its reading notes permanently deleted.');return next;
  }
  async edit(record,{article=false}={}){
-  this.requireCloud();await this.flush();this.editRecord=record;this.editingArticle=article;
+  if(record.storage!=='device')this.requireCloud();await this.flush();this.editRecord=record;this.editingArticle=article;
   $('pdf-edit-heading').textContent=article?'Article category':'PDF details';$('pdf-edit-title-label').hidden=article;$('pdf-edit-title').required=!article;$('pdf-edit-title').value=record.title;
   this.categorySelect($('pdf-edit-category'),record.category_id||this.assignments.find(a=>a.document_id===record.id)?.category_id||'personal');this.toggleNew('edit');$('pdf-edit-status').textContent='';$('pdf-edit-dialog').showModal();
  }
  async saveDetails(){
-  try{const category=await this.selectedCategory('edit');
+  try{const category=await this.selectedCategory('edit',{device:this.editRecord.storage==='device'});
    if(this.editingArticle){this.mutation++;await this.api.assign(this.editRecord.id,category.id);this.mutation++;this.assignments=this.assignments.filter(a=>a.document_id!==this.editRecord.id);this.assignments.push({document_id:this.editRecord.id,category_id:category.id});await this.persist();}
-   else{const record=this.records.find(r=>r.id===this.editRecord.id);await this.change(record,'update',{title:$('pdf-edit-title').value.trim(),category_id:category.id});if(this.active)this.paint(this.active);}
+   else{const record=this.findRecord(this.editRecord.id);await this.change(record,'update',{title:$('pdf-edit-title').value.trim(),category_id:category.id,...(record.storage==='device'?{category_title:category.title}:{})});if(this.active)this.paint(this.active);}
    $('pdf-edit-dialog').close();
   }catch(error){$('pdf-edit-status').textContent=error.message;throw error;}
  }

@@ -427,3 +427,26 @@ category; only real collections appear in the collection filter. Existing Studio
 collections remain unchanged. No stored category assignments or PDF bytes changed.
 Validated with 36 unit/database tests and the PDF browser suite, including direct
 category rendering and the absence of a synthetic collection filter option.
+
+### Free-plan PDF limits and device resources — 2026-11-08
+
+Added supabase/pdf-free-plan.sql and installed it through the Reader Notes SQL
+editor in project zkffujfbzbxoexohcmwk. Verified reader-pdfs remains private,
+application/pdf only, with file_size_limit 52428800. Database size constraint now
+matches 50 MiB. No subscription, billing, or access-policy changes.
+
+Import offers cloud (50 MiB) and device-only (150 MiB) reading. Files above 50 MiB
+automatically select device mode. Local/iCloud Drive/OneDrive files are chosen
+through the native picker; they must be available/downloaded on the device.
+Device mode never uploads its file, notes or new category. A browser copy is
+optional; otherwise source reselection is required after reopening. Metadata,
+notes, progress, categories and trash are browser/account scoped. Sign-out warns
+before clearing device entries and notes, preserving existing study-backup flow.
+Original source files are never modified. Blob range transport now lets PDF.js
+read bounded slices instead of copying the full PDF into an array buffer.
+
+Checks: 36 unit/database tests including 50 MiB boundary; existing article/account
+browser suite; PDF browser suite with a sparse 125 MiB file. Large-file checks
+cover range reads, source reselection, optional browser persistence, retained
+notes, local categories, trash/restore/removal and no cloud record/object creation.
+See PDF_LIBRARY.md for user choices and limits.
