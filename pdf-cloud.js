@@ -17,14 +17,13 @@ export class PdfCloud{
  async remove(record){return this.cloud.request(`/storage/v1/object/${PDF_BUCKET}`,{method:'DELETE',token:await this.cloud.token(),body:{prefixes:[record.object_path]}});}
  async upload(record,file,{url,onProgress,onUrl,signal}={}){
   await import('./vendor/tus.min.js');
-  const token=await this.cloud.token();
   return new Promise((resolve,reject)=>{
    let settled=false;
    const finish=error=>{if(settled)return;settled=true;signal?.removeEventListener('abort',abort);error?reject(error):resolve();};
    const upload=new globalThis.tus.Upload(file,{
     endpoint:this.cloud.url+'/storage/v1/upload/resumable',chunkSize:6*1024*1024,
     retryDelays:[0,1000,3000,5000],uploadDataDuringCreation:true,storeFingerprintForResuming:false,
-    headers:{authorization:`Bearer ${token}`,apikey:this.cloud.key},
+    headers:{apikey:this.cloud.key},
     metadata:{bucketName:PDF_BUCKET,objectName:record.object_path,contentType:'application/pdf',cacheControl:'3600'},
     onBeforeRequest:async request=>{request.setHeader('authorization',`Bearer ${await this.cloud.token()}`);},
     onAfterResponse:async()=>{if(upload.url)await onUrl?.(safeUploadUrl(upload.url,this.cloud.url));},

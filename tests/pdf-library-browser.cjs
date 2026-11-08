@@ -31,6 +31,7 @@ async function mock(page){
    else if(body.p_action==='finish_delete'){assert.ok(!objects.has(record.object_path));Object.assign(record,{status:'purged',notes:'',filename:'',title:'Deleted PDF'});}
    record.revision++;record.updated_at=new Date().toISOString();return reply(record);
   }
+  if(p.startsWith('/storage/v1/upload/resumable'))assert.equal(req.headers().authorization,'Bearer '+uid,'TUS must send exactly one Authorization value');
   if(p==='/storage/v1/upload/resumable'&&method==='POST'){
    const metadata=Object.fromEntries(req.headers()['upload-metadata'].split(',').map(entry=>{const [k,v]=entry.trim().split(' ');return [k,Buffer.from(v||'','base64').toString()];}));
    const id=String(uploads.size+1),data=req.postDataBuffer()||Buffer.alloc(0),total=Number(req.headers()['upload-length']);uploads.set(id,{path:metadata.objectName,data,total});if(data.length===total)objects.set(metadata.objectName,data);
