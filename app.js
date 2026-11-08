@@ -42,7 +42,7 @@ const rich=new RichEditor({context:()=>({scope,books,book:current()}),notify,
 });
 tools.rich=rich;rich.onLoaded=()=>tools.syncRichPanels();
 rich.onSelection=value=>{tools.selected=value;};
-const pdfLibrary=new PdfLibrary({cloud,context:()=>({scope}),notify,run,onChanged:()=>{render();updateAccount();},
+const pdfLibrary=new PdfLibrary({getArticles:()=>books.filter(b=>!b.deleted).map(b=>({id:b.id,title:b.title,content:b.content})),cloud,context:()=>({scope,busy}),notify,run,onChanged:()=>{render();updateAccount();},
  onOpen:async()=>{if(!tools.confirmLeave())throw Error('Save your vocabulary changes first.');await saveDraft();rich.close();closePdf();active=null;$('library-view').hidden=true;$('workspace-view').hidden=true;},
  onClose:()=>{$('library-view').hidden=false;render();}
 });
@@ -59,7 +59,7 @@ async function run(fn,allowTyping=false){
   const controls=[...document.querySelectorAll('button,input,textarea,select')].filter(el=>!el.closest('#pdf-import-dialog')&&!el.disabled&&(!allowTyping||el.matches('button,select,input[type=checkbox],input[type=radio]')));
   controls.forEach(el=>el.disabled=true);
   try{await fn();}catch(e){notify(e.message||'The operation failed.',true);if(active)status(unsaved?'Not saved — retry Save & sync':'Device draft retained · sync incomplete');}
-  finally{controls.forEach(el=>el.disabled=!ready);if(ready){tools.availability();sharing.availability();$('sync-library').disabled=!cloud.session;$('account-publications').disabled=!cloud.session||!cloud.sharingReady;}document.querySelector('main').inert=false;document.querySelector('.topbar').inert=false;busy=false;}
+  finally{controls.forEach(el=>el.disabled=!ready);if(ready){tools.availability();sharing.availability();$('sync-library').disabled=!cloud.session;$('account-publications').disabled=!cloud.session||!cloud.sharingReady;}document.querySelector('main').inert=false;document.querySelector('.topbar').inert=false;busy=false;pdfLibrary.mixed.focusChanged(pdfLibrary.focusedPane);}
 }
 async function acquireLock(nextScope){
   if(accountLock){accountLock();accountLock=null;}
@@ -75,7 +75,7 @@ async function loadScope(){
   ready=false;rich.close();pdfLibrary.reset();
   const next=cloud.session?`account:${cloud.session.user.id}`:'local';
   await acquireLock(next);
-  activityToken++;readingActivity={};originalActivity={};libraryExpansion.clear();scope=next;lastSync=await db.getSetting(`last-sync:${scope}`)||null;pdfBooks=new Set((await db.listAssets(scope)).filter(a=>!['cloud-pdf:','device-pdf:'].some(prefix=>a.key.slice(scope.length+1).startsWith(prefix))).map(a=>a.key.slice(scope.length+1)));books=await db.listBooks(scope);active=null;unsaved=false;closePdf();
+  activityToken++;readingActivity={};originalActivity={};libraryExpansion.clear();scope=next;lastSync=await db.getSetting(`last-sync:${scope}`)||null;pdfBooks=new Set((await db.listAssets(scope)).filter(a=>!['cloud-pdf:','device-pdf:','mixed-file:'].some(prefix=>a.key.slice(scope.length+1).startsWith(prefix))).map(a=>a.key.slice(scope.length+1)));books=await db.listBooks(scope);active=null;unsaved=false;closePdf();
   sharing.reset();migration.reset();
   for(const id of ['title','language','content','notes'])$(id).value='';
   $('review-dialog').close();$('review-body').replaceChildren();$('review-actions').replaceChildren();
@@ -350,15 +350,15 @@ $('sign-out').onclick=()=>run(async()=>{
     review('Save your pending work');$('review-body').append(node('p','This account has device drafts or conflicts. Sync or export a backup before signing out. Signing out clears this account’s device cache.'));
     $('review-actions').append(button('Keep account open',()=>{$('review-dialog').close();$('account-dialog').close();}));return;
   }
-  async function finish(){const oldScope=scope;tools.stop();await cloud.signOut();await db.clearAccount(oldScope);await loadScope();$('account-dialog').close();notify('Signed out on this device.');}
+  async function finish(){const oldScope=scope;await pdfLibrary.flush();pdfLibrary.close();await pdfLibrary.mixed.write;await pdfLibrary.viewWrite;tools.stop();await cloud.signOut();await db.clearAccount(oldScope);await loadScope();$('account-dialog').close();notify('Signed out on this device.');}
   const study=await tools.exportStudy(books.map(book=>book.id));
   if(study.vocabulary.length||await sharing.countDrafts()){
     review('Back up personal study data');$('review-body').append(node('p','Vocabulary and contribution drafts may have device-only changes. Export a backup before signing out clears this account’s device cache. Migration source files must be retained separately.'));
-    if(pdfLibrary.device.records.length)$('review-body').append(node('p','Device-only PDF entries, browser copies and their reading notes will also be cleared. PDF notes are not in the article backup; copy any notes you want to retain first. Original files in your folders or drives are unchanged.'));
+    if(pdfLibrary.device.records.length||pdfLibrary.mixed.sources.some(s=>s.local||s.notes))$('review-body').append(node('p','Device-only file entries, browser copies and workspace notes will also be cleared. PDF notes are not in the article backup; copy any notes you want to retain first. Original files in your folders or drives are unchanged.'));
     $('review-actions').append(button('Export backup & sign out',async()=>{await exportBackup();await finish();$('review-dialog').close();}));return;
   }
-  if(pdfLibrary.device.records.length){
-    review('Device-only PDFs');$('review-body').append(node('p','Signing out clears this account’s device-only PDF entries, browser copies and reading notes. Original files in your folders, iCloud Drive or OneDrive are unchanged. Copy any reading notes you want to keep before signing out.'));
+  if(pdfLibrary.device.records.length||pdfLibrary.mixed.sources.some(s=>s.local||s.notes)){
+    review('Device-only files');$('review-body').append(node('p','Signing out clears this account’s device-only file entries, browser copies and workspace notes. Original files in your folders, iCloud Drive or OneDrive are unchanged. Copy any reading notes you want to keep before signing out.'));
     $('review-actions').append(button('Keep account open',()=>{$('review-dialog').close();$('account-dialog').close();}),button('Sign out & clear device copies',async()=>{await finish();$('review-dialog').close();}));return;
   }
   await finish();

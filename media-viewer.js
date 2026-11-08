@@ -1,0 +1,34 @@
+// Device media is displayed through object URLs; text is always inserted as text.
+export function mediaKind(file){const ext=file.name?.split('.').pop().toLowerCase();if(ext==='pdf')return 'pdf';if(['txt','md','csv','log'].includes(ext))return 'text';if(['png','jpg','jpeg','gif','webp','avif','bmp'].includes(ext))return 'image';if(['mp4','m4v','webm','mov','ogv'].includes(ext))return 'video';throw Error('Choose PDF, text (.txt, .md, .csv), an image, or a video clip.');}
+export class MediaViewer{
+ constructor(root,{kind,onView=()=>{},onFocus=()=>{},state={}}){Object.assign(this,{root,kind,onView,onFocus,state});this.rotation=state.rotation||0;this.zoom=state.zoom||'fit';root.className='media-viewer';root.addEventListener('pointerdown',onFocus);root.addEventListener('focusin',onFocus);}
+ async open(blob,text){
+  const controls=document.createElement('div');controls.className='media-controls';this.root.append(controls);this.controls=controls;
+  const button=(label,action)=>{const b=document.createElement('button');b.textContent=label;b.onclick=action;controls.append(b);return b;};
+  this.scroll=document.createElement('div');this.scroll.className='media-scroll';this.root.append(this.scroll);
+  if(this.kind==='text'){
+   const search=document.createElement('input');search.type='search';search.placeholder='Find in text';search.setAttribute('aria-label','Find in pane text');controls.append(search);const result=document.createElement('span');result.role='status';
+   button('Find next',()=>{const query=search.value;if(!query)return;const raw=this.text.toLocaleLowerCase(),q=query.toLocaleLowerCase();let index=raw.indexOf(q,this.matchEnd||0);if(index<0)index=raw.indexOf(q);this.content.replaceChildren();if(index<0){this.content.textContent=this.text;result.textContent='No match';return;}this.content.append(document.createTextNode(this.text.slice(0,index)));const mark=document.createElement('mark');mark.textContent=this.text.slice(index,index+query.length);this.content.append(mark,document.createTextNode(this.text.slice(index+query.length)));mark.scrollIntoView({block:'center'});this.matchEnd=index+query.length;result.textContent='Match found';});controls.append(result);search.oninput=()=>{this.matchEnd=0;};
+   const size=document.createElement('select');size.setAttribute('aria-label','Text size');for(const n of [14,16,18,20,24,28])size.add(new Option(n+' px',n));size.value=String(this.state.fontSize||18);size.onchange=()=>{this.content.style.fontSize=size.value+'px';this.capture();};controls.append(size);this.size=size;
+   this.text=text??await blob.text();this.content=document.createElement('pre');this.content.className='media-text';this.content.textContent=this.text;this.content.style.fontSize=size.value+'px';this.scroll.append(this.content);
+  }else{
+   this.url=URL.createObjectURL(blob);
+   if(this.kind==='image'){
+    const zoom=document.createElement('select');zoom.setAttribute('aria-label','Image zoom');for(const [v,t] of [['fit','Fit image'],['1','100%'],['1.5','150%'],['2','200%']])zoom.add(new Option(t,v));zoom.value=String(this.zoom);zoom.onchange=()=>{this.zoom=zoom.value;this.renderImage();this.capture();};controls.append(zoom);button('Rotate 90°',()=>{this.rotation=(this.rotation+90)%360;this.renderImage();this.capture();});
+    this.stage=document.createElement('div');this.stage.className='media-image-stage';this.image=document.createElement('img');this.image.alt=blob.name||'Reference image';this.image.onload=()=>{this.renderImage();this.restore();};this.image.onerror=()=>this.error('This image format cannot be displayed in this browser.');this.image.src=this.url;this.stage.append(this.image);this.scroll.append(this.stage);this.resize=new ResizeObserver(()=>this.renderImage());this.resize.observe(this.scroll);
+   }else{
+    this.video=document.createElement('video');this.video.controls=true;this.video.playsInline=true;this.video.preload='metadata';this.video.src=this.url;this.scroll.append(this.video);this.video.onloadedmetadata=()=>{this.video.currentTime=Math.min(this.state.time||0,Number.isFinite(this.video.duration)?this.video.duration:0);this.video.playbackRate=this.state.rate||1;};this.video.ontimeupdate=()=>this.capture();this.video.onratechange=()=>this.capture();this.video.onerror=()=>this.error('This video cannot play in this browser. Try an MP4 with compatible encoding. Your original file is unchanged.');
+    const rate=document.createElement('select');rate.setAttribute('aria-label','Video speed');for(const n of [.5,.75,1,1.25,1.5,2])rate.add(new Option(n+'×',n));rate.value=String(this.state.rate||1);rate.onchange=()=>{this.video.playbackRate=Number(rate.value);};controls.append(rate);
+   }
+  }
+  this.scroll.addEventListener('scroll',()=>{clearTimeout(this.timer);this.timer=setTimeout(()=>this.capture(),180);},{passive:true});await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));this.restore();
+ }
+ error(message){let status=this.root.querySelector('.media-error');if(!status){status=document.createElement('p');status.className='media-error';status.role='status';this.root.append(status);}status.textContent=message;}
+ renderImage(){if(!this.image?.naturalWidth)return;const rotated=this.rotation%180!==0,w=rotated?this.image.naturalHeight:this.image.naturalWidth,h=rotated?this.image.naturalWidth:this.image.naturalHeight;const scale=this.zoom==='fit'?Math.min((this.scroll.clientWidth-20)/w,(this.scroll.clientHeight-20)/h):Number(this.zoom);const safe=Math.max(.01,scale);this.stage.style.width=w*safe+'px';this.stage.style.height=h*safe+'px';Object.assign(this.image.style,{width:this.image.naturalWidth*safe+'px',height:this.image.naturalHeight*safe+'px',transform:`translate(-50%,-50%) rotate(${this.rotation}deg)`});}
+ restore(){if(!this.scroll)return;this.scroll.scrollTop=(this.state.scroll||0)*Math.max(0,this.scroll.scrollHeight-this.scroll.clientHeight);this.scroll.scrollLeft=this.state.left||0;}
+ getState(){return {scroll:this.scroll?.scrollTop/Math.max(1,this.scroll.scrollHeight-this.scroll.clientHeight)||0,left:this.scroll?.scrollLeft||0,rotation:this.rotation,zoom:this.zoom,fontSize:Number(this.size?.value)||18,time:this.video?.currentTime||0,rate:this.video?.playbackRate||1};}
+ capture(){if(this.closed)return;this.onView(this.getState());}
+ async pageText(){const selected=getSelection();return selected?.rangeCount&&this.root.contains(selected.anchorNode)&&this.root.contains(selected.focusNode)&&selected.toString().trim()?selected.toString():this.kind==='text'?this.text:'';}
+ setActive(active){this.root.closest('.pdf-pane')?.classList.toggle('active',active);}
+ close(){this.capture();this.closed=true;clearTimeout(this.timer);this.resize?.disconnect();if(this.video){this.video.pause();this.video.removeAttribute('src');this.video.load();}if(this.url)URL.revokeObjectURL(this.url);this.root.replaceChildren();}
+}

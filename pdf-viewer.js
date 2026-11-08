@@ -22,9 +22,9 @@ export class PdfViewer{
   this.library=await import('./vendor/pdfjs/pdf.compat.mjs');globalThis.pdfjsLib=this.library;
   this.library.GlobalWorkerOptions.workerSrc=new URL('./vendor/pdfjs/pdf.worker.compat.mjs',import.meta.url).href;
   const {PDFViewer,EventBus,PDFLinkService,PDFFindController}=await import('./vendor/pdfjs/pdf-viewer.compat.mjs');
-  this.eventBus=new EventBus();this.linkService=new PDFLinkService({eventBus:this.eventBus,externalLinkTarget:2,externalLinkRel:'noopener noreferrer'});
+  if(this.disposed)return;this.lifetime=new AbortController();this.eventBus=new EventBus();this.linkService=new PDFLinkService({eventBus:this.eventBus,externalLinkTarget:2,externalLinkRel:'noopener noreferrer'});
   this.findController=new PDFFindController({eventBus:this.eventBus,linkService:this.linkService});
-  this.component=new PDFViewer({container:this.container,viewer:this.surface,eventBus:this.eventBus,linkService:this.linkService,findController:this.findController,removePageBorders:true,annotationEditorMode:-1,maxCanvasPixels:8388608,imageResourcesPath:new URL('./vendor/pdfjs/images/',import.meta.url).href});this.linkService.setViewer(this.component);
+  this.component=new PDFViewer({abortSignal:this.lifetime.signal,container:this.container,viewer:this.surface,eventBus:this.eventBus,linkService:this.linkService,findController:this.findController,removePageBorders:true,annotationEditorMode:-1,maxCanvasPixels:8388608,imageResourcesPath:new URL('./vendor/pdfjs/images/',import.meta.url).href});this.linkService.setViewer(this.component);
   this.eventBus.on('pagechanging',()=>{if(!this.document)return;this.paint();this.scheduleState();});
   this.eventBus.on('updateviewarea',()=>this.scheduleState());
   this.eventBus.on('pagerendered',event=>{if(!this.document||event.source.pdfPage?._transport!==this.document._transport)return;this.paint();if(event.error)this.onError(event.error);});
@@ -71,5 +71,6 @@ export class PdfViewer{
  find(previous=false){const query=this.$('search').value.trim();if(!query||!this.document)return;this.$('find-status').textContent='Searching…';this.eventBus.dispatch('find',{source:this,type:query===this.lastQuery?'again':'',query,phraseSearch:true,caseSensitive:false,entireWord:false,highlightAll:true,findPrevious:previous,matchDiacritics:false});this.lastQuery=query;}
  async pageText(){if(!this.document)return '';const selected=getSelection();if(selected?.rangeCount&&this.root.contains(selected.anchorNode)&&this.root.contains(selected.focusNode)&&selected.toString().trim())return selected.toString();const source=await this.document.getPage(this.page);return (await source.getTextContent()).items.map(item=>item.str+(item.hasEOL?'\n':' ')).join('');}
  setActive(active){this.navigate.hidden=!active;this.viewControls.hidden=!active;this.root.closest('.pdf-pane')?.classList.toggle('active',active);}
+ dispose(){this.close();this.disposed=true;this.resize.disconnect();this.lifetime?.abort();}
  close(){if(this.document)this.capture();this.generation++;this.cancelReady?.();this.cancelReady=null;clearTimeout(this.stateTimer);this.restoring=false;this.component?.setDocument(null);this.linkService?.setDocument(null);const task=this.loading;this.loading=null;this.document=null;this.lastQuery='';this.page=1;this.$('search').value='';this.$('find-status').textContent='';this.$('view-status').textContent='';if(task)void task.destroy().catch(()=>{});}
 }

@@ -1,0 +1,73 @@
+import {MediaViewer,mediaKind} from './media-viewer.js';
+import {PdfViewer} from './pdf-viewer.js';
+import {pdfDeviceIdentity} from './pdf-library-model.js';
+import * as db from './storage.js';
+const $=id=>document.getElementById(id);
+export class MixedPanes{
+ constructor(host){
+  this.host=host;this.panes=new Map();this.sources=[];this.files=new Map();this.sequence=0;
+  const dialog=document.createElement('dialog');dialog.id='mixed-add-dialog';dialog.innerHTML='<form id="mixed-add-form"><div class="dialog-heading"><h2>Add or replace pane</h2><button type="button" id="mixed-add-close" aria-label="Close add pane">×</button></div><label>Library or saved device source<select id="mixed-source"><option value="">Choose a source…</option></select></label><p>Or choose a downloaded file from your device, iCloud Drive or OneDrive. Local files and their notes stay on this browser.</p><label>File<input id="mixed-file" type="file" accept=".pdf,.txt,.md,.csv,.log,.png,.jpg,.jpeg,.gif,.webp,.avif,.bmp,.mp4,.m4v,.webm,.mov,.ogv"></label><label class="mixed-checkbox"><input id="mixed-keep" type="checkbox"> Keep a browser copy for offline reopening</label><p class="muted">Text: up to 10 MB; images: 50 MB; PDFs: 150 MB; video: 500 MB. Browser copies: up to 150 MB, subject to available storage. Without a copy, select the original file again after reopening.</p><p id="mixed-add-status" role="status"></p><div class="actions"><button class="primary">Open pane</button><button type="button" id="mixed-forget">Forget saved device source</button></div></form>';document.body.append(dialog);this.dialog=dialog;
+  const primaryHeader=$('pdf-primary-pane').querySelector('header');const replace=document.createElement('button');replace.textContent='Replace';replace.id='mixed-replace-primary';replace.onclick=()=>this.showDialog('primary');const close=document.createElement('button');close.textContent='×';close.setAttribute('aria-label','Close primary pane');close.onclick=()=>this.host.run(()=>this.removePrimary());primaryHeader.append(replace,close);
+  $('mixed-add-close').onclick=()=>{if(!this.opening)dialog.close();};dialog.addEventListener('cancel',e=>{if(this.opening)e.preventDefault();});$('mixed-add-form').onsubmit=e=>{e.preventDefault();void this.submit().catch(error=>{$('mixed-add-status').textContent=error.message;});};$('mixed-forget').onclick=()=>{void this.forget().catch(error=>{$('mixed-add-status').textContent=error.message;});};
+  this.tabs=document.createElement('div');this.tabs.className='mixed-tabs';this.tabs.setAttribute('aria-label','Workspace panes');$('pdf-pane-grid').before(this.tabs);
+  this.notes=document.createElement('textarea');this.notes.id='mixed-notes';this.notes.maxLength=1000000;this.notes.placeholder='Private notes for this file…';this.notes.hidden=true;$('pdf-reading-notes').closest('label').after(this.notes);this.noteStatus=document.createElement('p');this.noteStatus.className='mixed-notes-status';this.noteStatus.hidden=true;this.notes.after(this.noteStatus);this.notes.oninput=()=>{const pane=this.panes.get(this.active);if(!pane)return;pane.source.notes=this.notes.value;this.save();};
+  const entry=document.createElement('button');entry.id='open-mixed-workspace';entry.textContent='Open workspace';entry.onclick=()=>this.showDialog();$('import-pdf').after(entry);
+  const add=document.createElement('button');add.id='mixed-add-pane';add.textContent='Add pane';add.onclick=()=>this.showDialog();$('pdf-duplicate').before(add);
+  $('pdf-pane-layout').add(new Option('Grid (up to 4 panes)','grid'));
+ }
+ async activate(owner){this.reset();this.owner=owner;this.sources=await db.getSetting('mixed-sources:'+owner)||[];}
+ save(){this.write=this.persist();void this.write.catch(error=>this.host.notify('Workspace changes could not be saved: '+error.message,true));return this.write;}
+ persist(){return db.setSetting('mixed-sources:'+this.owner,this.sources);}
+ reset(){this.version=(this.version||0)+1;this.closeAll();this.sources=[];this.files.clear();this.dialog.close();}
+ count(){return this.panes.size+(this.host.active?1:0)+(this.host.comparison?1:0);}
+ showDialog(replace=null){if(!replace&&this.count()>=4){this.host.notify('Up to four panes can be open. Close or replace a pane first.');return;}this.replacing=replace;this.populate();$('mixed-file').value='';$('mixed-keep').checked=false;$('mixed-add-status').textContent='';this.dialog.showModal();}
+ populate(){const select=$('mixed-source');select.replaceChildren(new Option('Choose a source…',''));for(const item of this.host.getArticles())select.add(new Option('Text · '+item.title,'article:'+item.id));for(const record of this.host.items.filter(r=>r.status==='ready'&&!r.deleted))select.add(new Option('PDF · '+record.title,'pdf:'+record.id));for(const source of this.sources.filter(s=>s.local))select.add(new Option(source.kind+' · '+source.title+(source.kept?' · browser copy':' · select source file'),'saved:'+source.id));}
+ async keepCopy(owner,id,file){try{await db.putAsset(owner,'mixed-file:'+id,file.slice(0,file.size,file.type));}catch(error){if(error.name==='QuotaExceededError')throw error;const chunks=[];for(let start=0;start<file.size;start+=4*1024*1024)chunks.push(await file.slice(start,start+4*1024*1024).arrayBuffer());await db.putAsset(owner,'mixed-file:'+id,{format:'mixed-bytes-v1',type:file.type,chunks});}}
+ async readCopy(owner,id){const value=(await db.getAsset(owner,'mixed-file:'+id))?.file;return value?.format==='mixed-bytes-v1'?new Blob(value.chunks,{type:value.type}):value;}
+ async submit(){
+  if(this.opening)return;this.opening=true;$('mixed-add-status').textContent='Opening…';const version=this.version,owner=this.owner,valid=()=>version===this.version&&owner===this.owner;
+  try{
+   const value=$('mixed-source').value,file=$('mixed-file').files[0],keep=$('mixed-keep').checked;let source,blob,text;
+   if(file){
+    const kind=mediaKind(file),limit={text:10,image:50,pdf:150,video:500}[kind]*1024*1024;if(!file.size||file.size>limit)throw Error('The file is empty or exceeds the displayed limit for this type.');if(keep&&file.size>150*1024*1024)throw Error('Browser copies are limited to 150 MB. Uncheck Keep a browser copy to read this file for this session.');
+    const identity=await pdfDeviceIdentity(file);if(!valid())return;
+    const selected=value.startsWith('saved:')?this.sources.find(s=>s.id===value.slice(6)):null;if(selected&&selected.identity!==identity)throw Error('Select the original file for this saved source, or choose a new source from the list.');
+    source=selected||this.sources.find(s=>s.local&&s.identity===identity&&s.title===file.name)||{id:crypto.randomUUID(),title:file.name,kind,identity,local:true,notes:'',view:{}};
+    if(keep)try{await this.keepCopy(owner,source.id,file);}catch(error){throw Error('The browser could not keep a copy. Uncheck Keep a browser copy and retry. '+error.message);}else await db.deleteAsset(owner,'mixed-file:'+source.id);
+    if(!valid())return;source.kept=keep;this.files.set(source.id,file);blob=file;
+   }else if(value.startsWith('saved:')){
+    source=this.sources.find(s=>s.id===value.slice(6));if(!source)throw Error('Source unavailable.');blob=this.files.get(source.id)||await this.readCopy(owner,source.id);if(!blob)throw Error('Select the original file above to reopen this saved source. Its notes and position will be retained.');
+   }else if(value.startsWith('article:')){
+    const article=this.host.getArticles().find(a=>a.id===value.slice(8));if(!article)throw Error('Article unavailable.');source=this.sources.find(s=>s.id===value)||{id:value,title:article.title,kind:'text',notes:'',view:{}};text=article.content;
+   }else if(value.startsWith('pdf:')){
+    const record=this.host.findRecord(value.slice(4));if(!record||record.deleted)throw Error('PDF unavailable.');source=this.sources.find(s=>s.id===value)||{id:value,title:record.title,kind:'pdf',notes:'',view:{page:record.last_page}};blob=record.storage==='device'?await this.host.device.file(record):(await db.getAsset(owner,'cloud-pdf:'+record.id))?.file;if(!blob&&record.storage==='device')throw Error('Open this PDF from the Library and select its source first.');if(!blob){this.host.requireCloud();blob=await this.host.api.file(record);}
+   }else throw Error('Choose a Library item or a file.');
+   if(!valid())return;this.sources=this.sources.filter(s=>s.id!==source.id);this.sources.push(source);await this.persist();if(!valid())return;
+   if(!document.body.classList.contains('pdf-open')){await this.host.onOpen();if(!valid())return;this.host.close();$('pdf-workspace').hidden=false;document.body.classList.add('pdf-open');$('pdf-library-title').textContent='Mixed-file workspace';$('pdf-library-status').textContent='Device workspace · local files are not uploaded';}
+   if(this.replacing==='primary')await this.removePrimary(true);else if(this.replacing)this.closePane(this.replacing);if(this.count()>=4)throw Error('Close a pane before adding another.');
+   await this.add(source,blob,text);if(valid())this.dialog.close();
+  }finally{this.opening=false;}
+ }
+ async removePrimary(replacing=false){await this.host.flush();this.host.closeComparison();this.host.viewer.close();this.host.active=null;this.host.blob=null;$('pdf-library-title').textContent='Mixed-file workspace';$('pdf-library-status').textContent='Device workspace · local files are not uploaded';this.host.maximized=null;this.host.applyWorkspace();const next=this.panes.keys().next().value;if(next)this.focus(next);if(!replacing&&!this.count()){this.host.close();this.host.onClose();}}
+ async add(source,blob,text){
+  const id='mixed-'+(++this.sequence),section=document.createElement('section');section.className='pdf-pane mixed-pane';section.dataset.mixed=id;section.innerHTML='<header><button class="mixed-focus"></button><span></span><button class="mixed-replace">Replace</button><button class="mixed-maximize" aria-label="Maximize pane">□</button><button class="mixed-close" aria-label="Close pane">×</button></header><div class="mixed-content"></div>';
+  section.querySelector('.mixed-focus').textContent=source.kind;section.querySelector('header span').textContent=source.title;section.querySelector('.mixed-focus').onclick=()=>this.focus(id);section.querySelector('.mixed-replace').onclick=()=>this.showDialog(id);section.querySelector('.mixed-close').onclick=()=>this.closePane(id);section.querySelector('.mixed-maximize').onclick=()=>{this.focus(id);this.host.maximized=this.host.maximized===id?null:id;this.host.applyWorkspace();};$('pdf-pane-grid').append(section);
+  const root=section.querySelector('.mixed-content');root.id=id+'-reader';const pane={id,source,section,blob,text};this.panes.set(id,pane);
+  const onView=view=>{source.view=view;this.save();},onFocus=()=>this.focus(id);
+  try{
+   pane.viewer=source.kind==='pdf'?new PdfViewer(root,{prefix:id,onView,onFocus,onError:error=>this.host.notify(error.message,true)}):new MediaViewer(root,{kind:source.kind,state:source.view,onView,onFocus});
+   this.focus(id);this.host.maximized=null;if(this.count()===3&&this.host.preferences.split==='beside'){this.host.preferences.split='grid';void this.host.saveWorkspace();}this.host.applyWorkspace();if(source.kind==='pdf')await pane.viewer.open(blob,source.view);else await pane.viewer.open(blob,text);
+   if(!this.panes.has(id)){pane.viewer.close();return;}this.focus(id);
+  }catch(error){this.closePane(id);throw error;}
+ }
+ focus(id){const pane=this.panes.get(id);if(!pane)return;this.active=id;this.host.focusPane(id);}
+ focusChanged(id){this.active=this.panes.has(id)?id:null;for(const [key,pane]of this.panes)pane.viewer?.setActive(key===id);const pane=this.panes.get(id);this.notes.hidden=!pane;this.noteStatus.hidden=!pane;$('pdf-notes-status').hidden=Boolean(pane);$('pdf-reading-notes').closest('label').hidden=Boolean(pane);if(pane){this.notes.value=pane.source.notes||'';$('pdf-notes-heading').textContent='Notes · '+pane.source.title;this.noteStatus.textContent='Device-only notes · saved on this browser';}else if(this.host.active){$('pdf-notes-heading').textContent='Notes · '+this.host.active.title;}for(const control of ['pdf-edit-details','pdf-completed','pdf-trash','pdf-download-original','pdf-remove-offline'])$(control).disabled=Boolean(pane)||!this.host.active||this.host.context().busy;$('pdf-duplicate').disabled=Boolean(pane)||!this.host.active||this.host.context().busy;$('pdf-open-compare').disabled=!this.host.active||this.host.context().busy;this.layout();}
+ layout(){
+  const entries=[];if(this.host.active)entries.push(['primary',$('pdf-primary-pane'),this.host.active.title]);if(this.host.comparison)entries.push(['secondary',$('pdf-secondary-pane'),this.host.comparison.title]);for(const [id,p]of this.panes)entries.push([id,p.section,p.source.title]);
+  $('pdf-primary-pane').hidden=!this.host.active;$('pdf-pane-grid').dataset.count=entries.length;this.tabs.replaceChildren();for(const [id,section,title]of entries){section.dataset.paneKey=id;section.dataset.mobileActive=String(id===this.host.focusedPane);section.classList.toggle('mixed-max-hidden',Boolean(this.host.maximized&&this.host.maximized!==id));const tab=document.createElement('button');tab.textContent=title;tab.setAttribute('aria-pressed',String(id===this.host.focusedPane));tab.onclick=()=>this.host.focusPane(id);this.tabs.append(tab);}this.tabs.hidden=entries.length<2;
+ }
+ closePane(id){const pane=this.panes.get(id);if(!pane)return;if(pane.viewer?.dispose)pane.viewer.dispose();else pane.viewer?.close();pane.section.remove();this.panes.delete(id);if(this.host.maximized===id)this.host.maximized=null;if(this.host.focusedPane===id){const next=this.panes.keys().next().value;if(next)this.focus(next);else this.host.focusPane('primary');}this.host.applyWorkspace();if(!this.count()&&document.body.classList.contains('pdf-open')){this.host.close();this.host.onClose();}}
+ closeAll(){for(const pane of this.panes.values()){if(pane.viewer?.dispose)pane.viewer.dispose();else pane.viewer?.close();pane.section.remove();}this.panes.clear();this.active=null;this.tabs?.replaceChildren();this.notes.hidden=true;}
+ async forget(){const value=$('mixed-source').value;if(!value.startsWith('saved:'))throw Error('Choose a saved device source to forget.');const id=value.slice(6);for(const [key,pane]of this.panes)if(pane.source.id===id)this.closePane(key);await db.deleteAsset(this.owner,'mixed-file:'+id);this.files.delete(id);this.sources=this.sources.filter(s=>s.id!==id);await this.persist();this.populate();$('mixed-add-status').textContent='Saved source, browser copy and workspace notes removed. The original file is unchanged.';}
+ async flush(){for(const pane of this.panes.values())pane.viewer?.capture();await this.write;}
+}

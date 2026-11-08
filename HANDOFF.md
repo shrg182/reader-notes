@@ -497,3 +497,46 @@ separate-file comparison, notes/reading mode, maximize/restore, split direction,
 fractional continuous-scroll restoration and mocked browser speech controls.
 WebKit checks disable newer page/worker APIs; physical iPad confirmation remains
 pending. Browser speech output is mocked in automation, not audio-certified.
+
+
+### Mixed-file workspace — 2026-11-08
+
+Library → Open workspace, or PDF → Panes & layout → Add pane. Open up to four
+panes from Library text articles/PDFs, or downloaded local/iCloud/OneDrive files.
+Device sources appear in the Add pane saved-source list, not as cloud Library
+imports. Formats: PDF; plain text TXT/MD/CSV/LOG; PNG/JPEG/GIF/WebP/AVIF/BMP;
+video MP4/M4V/WebM/MOV/OGV when the browser supports their encoding. Markdown
+and CSV display as plain text; text/HTML is never executed. No drive account
+connection, media upload, Supabase migration or billing change.
+
+MixedPanes manages additional panes alongside the original primary/comparison
+PDFs, with a four-pane total. Three/four panes default to grid; beside/stacked
+layouts remain selectable. Phones use file tabs with one active pane. Added
+replace/close/maximize controls, primary replacement, per-file local notes,
+text find/size/read-aloud, image fit/zoom/scroll/rotation and native video controls
+plus playback speed. Video never autoplays. Position, text size, image rotation/
+zoom, and video time/rate are restored independently from source metadata.
+Library article text is read-only; workspace notes do not overwrite article notes.
+Primary PDF actions stay labelled and disabled when a mixed pane has focus.
+
+Device limits: text 10 MiB, images 50 MiB, PDFs 150 MiB, videos 500 MiB. Optional
+browser copies are limited to 150 MiB and storage availability. Without a copy,
+reselect the original file; a bounded sample fingerprint checks identity and
+retains notes/view settings. Some WebKit environments cannot persist Blob/File
+objects; saved copies fall back to 4 MiB ArrayBuffer chunks in the asset record.
+Object URLs are revoked and video/rendering resources released on pane close.
+Forget saved device source removes its local notes/settings/browser copy, leaving
+the original file untouched. Workspace notes are not included in article backup.
+
+Records/notes/settings: mixed-sources:${scope}. Bytes: scoped mixed-file:${id}
+assets. Account sign-out warns about device sources/notes, flushes/closes panes,
+and clears the matching settings/assets. Other account scopes are unaffected.
+Service worker shell 0.12.0 includes mixed-panes.js and media-viewer.js.
+
+Validation: all 36 unit/database tests, existing article/account browser suite,
+cloud PDF/offline/125 MiB workflow, Safari compatibility PDF suite, and the new
+mixed-pane suite in Chromium and WebKit. Mixed tests cover inert multilingual
+text, image rotation, real generated H.264 video metadata/seek/rate, four panes,
+maximize/restore, phone tabs, copies/reselection/reopen, per-source notes, Library
+article isolation, primary replacement, Forget cleanup and account isolation.
+Physical iPad and all possible video encodings remain unverified.

@@ -9,6 +9,7 @@
     "test:browser": "node tests/browser.cjs",
     "test:pdf-browser": "node tests/pdf-library-browser.cjs",
     "vendor:pdf": "node tools/vendor_pdf.mjs",
+    "test:mixed-panes": "node tests/mixed-panes-browser.cjs",
     "test:pdf-viewer": "node tests/pdf-viewer-browser.cjs",
     "test:pdf-webkit": "TEST_ENGINE=webkit TEST_COMPAT=1 node tests/pdf-viewer-browser.cjs"
   },
