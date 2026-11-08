@@ -418,3 +418,12 @@ The synthetic file `Cloud PDF verification — safe to remove` remains in recove
 Trash; no other user files were altered. Library search was cleared afterward.
 Live SQL policies and tombstone tests passed and rolled back all fixture users.
 The private bucket and feature are active. No billing settings were changed.
+
+### Direct category items — 2026-11-08
+
+Removed the generated My documents collection for cloud PDFs and explicitly
+reassigned articles. Items without a collection now render directly beneath their
+category; only real collections appear in the collection filter. Existing Studio
+collections remain unchanged. No stored category assignments or PDF bytes changed.
+Validated with 36 unit/database tests and the PDF browser suite, including direct
+category rendering and the absence of a synthetic collection filter option.

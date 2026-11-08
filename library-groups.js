@@ -18,7 +18,7 @@ export function classifyImport(meta){
 }
 export function groupedBooks(books,metadata){
  const index=new Map(metadata.filter(x=>x.bookId).map(x=>[x.bookId,x]));const groups=new Map();
- for(const book of books){const meta=index.get(book.id),group=book.categoryId?{category:book.categoryId,categoryTitle:book.categoryTitle,collection:'category-'+book.categoryId,collectionTitle:'My documents',path:''}:meta?classifyImport(meta):{category:'personal',collection:'personal',categoryTitle:'My reading materials',collectionTitle:'My reading materials',path:''};const key=group.category+':'+group.collection;if(!groups.has(key))groups.set(key,{...group,books:[]});groups.get(key).books.push(book);}
+ for(const book of books){const meta=index.get(book.id),group=book.categoryId?{category:book.categoryId,categoryTitle:book.categoryTitle,collection:'',collectionTitle:'',path:''}:meta?classifyImport(meta):{category:'personal',collection:'personal',categoryTitle:'My reading materials',collectionTitle:'My reading materials',path:''};const key=group.category+':'+group.collection;if(!groups.has(key))groups.set(key,{...group,books:[]});groups.get(key).books.push(book);}
  const order=[...Object.keys(TAXONOMY.CATEGORIES),'other','personal'];
  return [...groups.values()].sort((a,b)=>order.indexOf(a.category)-order.indexOf(b.category)||(TAXONOMY.CATEGORY_COLLECTIONS[a.category]||[]).indexOf(a.collection)-(TAXONOMY.CATEGORY_COLLECTIONS[b.category]||[]).indexOf(b.collection));
 }

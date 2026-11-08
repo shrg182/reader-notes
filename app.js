@@ -91,13 +91,14 @@ function render(){
   function options(select,items,all){const previous=select.value;select.replaceChildren(new Option(all,''));for(const [id,title,count] of items)select.add(new Option(`${title} (${count})`,id));select.value=items.some(x=>x[0]===previous)?previous:'';}
   const categoryMap=new Map();for(const g of allGroups){const old=categoryMap.get(g.category);categoryMap.set(g.category,[g.category,g.categoryTitle,(old?.[2]||0)+articleRows(g.books,complete.meta).length]);}
   options($('library-category'),[...categoryMap.values()],'All categories');
-  options($('library-collection'),allGroups.filter(g=>!$('library-category').value||g.category===$('library-category').value).map(g=>[g.collection,g.collectionTitle,articleRows(g.books,complete.meta).length]),'All collections');
+  options($('library-collection'),allGroups.filter(g=>g.collection&&(!$('library-category').value||g.category===$('library-category').value)).map(g=>[g.collection,g.collectionTitle,articleRows(g.books,complete.meta).length]),'All collections');
   const groups=groupedBooks(visible,complete.meta).filter(g=>(!$('library-category').value||g.category===$('library-category').value)&&(!$('library-collection').value||g.collection===$('library-collection').value));
   $('books').replaceChildren();const categoryNodes=new Map();let shown=0;
   for(const group of groups){
     let category=categoryNodes.get(group.category);
     if(!category){category=node('details','','library-category-group');category.open=libraryExpansion.get('category:'+group.category)??true;category.ontoggle=()=>libraryExpansion.set('category:'+group.category,category.open);const total=groups.filter(g=>g.category===group.category).reduce((n,g)=>n+articleRows(g.books,complete.meta).length,0);const heading=node('summary');heading.append(node('strong',group.categoryTitle),node('small',TAXONOMY.CATEGORIES[group.category]?.[1]||''),node('span',`${total} articles`,'category-count'));category.append(heading);categoryNodes.set(group.category,category);$('books').append(category);}
-    const collection=node('details','','library-collection-group');collection.open=Boolean(query||$('library-collection').value||(libraryExpansion.get('collection:'+group.collection)??groups.length===1));collection.ontoggle=()=>libraryExpansion.set('collection:'+group.collection,collection.open);collection.append(node('summary',group.collectionTitle));category.append(collection);
+    let collection=category;
+    if(group.collection){collection=node('details','','library-collection-group');collection.open=Boolean(query||$('library-collection').value||(libraryExpansion.get('collection:'+group.collection)??groups.length===1));collection.ontoggle=()=>libraryExpansion.set('collection:'+group.collection,collection.open);collection.append(node('summary',group.collectionTitle));category.append(collection);}
     const ordered=articleRows(group.books,complete.meta);
     for(const row of ordered){
       const book=row.book;shown++;const card=node('article','','book');

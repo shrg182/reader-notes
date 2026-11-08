@@ -43,8 +43,7 @@ Encrypted PDFs prompt for their password, which is not stored.
 Details & category renames or moves the PDF. New categories sync to the account
 and can also be assigned to synced text articles using their Library Category
 button. Existing Studio categories and collection membership remain intact unless
-an article is explicitly reassigned. Reassigned items appear in My documents
-within the selected category. Category moves never move stored PDF bytes.
+an article is explicitly reassigned. PDFs and reassigned articles appear directly under the selected category. Category moves never move stored PDF bytes.
 
 ## Deletion and offline behavior
 
