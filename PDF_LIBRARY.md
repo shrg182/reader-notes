@@ -96,3 +96,15 @@ An anonymous REST probe of reader_pdfs returned HTTP 401.
 
 The organization dashboard reported free-plan egress above its allowance
 (9.19 GB / 5 GB). No subscription or billing settings were changed.
+
+Live browser verification also passed in the signed-in Reader Notes account:
+imported a synthetic one-page PDF, rendered it with PDF.js, removed its local
+cached bytes, and reopened it through an authenticated Storage download. The
+synthetic `Cloud PDF verification — safe to remove` file was moved to recoverable
+Trash afterward. It was not permanently deleted.
+
+The first live TUS request revealed duplicate Authorization header values caused
+by setting the same header in both initial options and onBeforeRequest. Removed
+the initial value so the refreshed user token is set once per request. The PDF
+browser suite now asserts a single exact Authorization value; the fixed upload
+and cloud download both passed live. Published code includes this correction.

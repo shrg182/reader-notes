@@ -405,3 +405,16 @@ database with rollback-only users/data; all checks passed. Verified bucket priva
 25 MiB PDF-only limit, three Storage policies, zero fixture users remaining.
 Anonymous reader_pdfs REST request returned 401. Feature flag enabled locally.
 Organization free-plan egress warning observed (9.19 / 5 GB); billing unchanged.
+
+### PDF release verified and published — 2026-11-08
+
+Published the full feature in 1a38f11, then fixed a real Storage authentication
+failure in 57b508f: XMLHttpRequest appended duplicate Authorization values when
+TUS set the same header twice. Authorization is now set only in onBeforeRequest.
+Added an exact single-header regression assertion; PDF browser tests pass.
+Both Pages deployments succeeded. Live signed-in synthetic PDF upload, rendering,
+local-cache removal, fresh authenticated cloud download, and Move to trash passed.
+The synthetic file `Cloud PDF verification — safe to remove` remains in recoverable
+Trash; no other user files were altered. Library search was cleared afterward.
+Live SQL policies and tombstone tests passed and rolled back all fixture users.
+The private bucket and feature are active. No billing settings were changed.
