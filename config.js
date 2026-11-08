@@ -6,5 +6,7 @@ window.READER_CONFIG = {
   // Enable only after sharing.sql is installed and its policies verified.
   sharingEnabled: true,
   migrationEnabled: true,
-  richEditorEnabled: true
+  richEditorEnabled: true,
+  // Enable after supabase/pdf-library.sql is installed and verified.
+  pdfLibraryEnabled: true
 };

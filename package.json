@@ -6,9 +6,13 @@
   "scripts": {
     "start": "python3 -m http.server 8780 --bind 127.0.0.1",
     "test": "node --test tests/*.test.mjs",
-    "test:browser": "node tests/browser.cjs"
+    "test:browser": "node tests/browser.cjs",
+    "test:pdf-browser": "node tests/pdf-library-browser.cjs",
+    "vendor:pdf": "node tools/vendor_pdf.mjs"
   },
   "devDependencies": {
-    "@electric-sql/pglite": "^0.5.15"
+    "@electric-sql/pglite": "^0.5.15",
+    "pdfjs-dist": "^6.5.438",
+    "tus-js-client": "^4.3.1"
   }
 }

@@ -361,3 +361,47 @@ Article titles are now keyboard-accessible buttons styled as text, opening the s
 
 ### Book title counts removed 0.8.2 — 2026-11-06
 Collection/book headings now display their titles without article-count suffixes. The library total, category summaries, filter counts and account statistics remain available. No stored data changes.
+
+---
+
+# Cloud PDF library prepared — 2026-11-08 (not activated or published)
+
+Added private first-class PDFs: Library Import PDF, local/cloud-provider file
+picker, 25 MiB validation, account-owned synced categories (including assignments
+for existing text articles), PDF.js page/zoom/search/text selection, notes,
+position, read status, offline copy removal, trash/restore and retryable permanent
+deletion. TUS checkpoints and file bytes are account-scoped; interrupted uploads
+resume or restart after URL expiry. Permanent deletion uses Storage API removal
+before purging notes/metadata; a tombstone rejects stale-device resurrection.
+
+Migration: `supabase/pdf-library.sql`. Setup and limits: `PDF_LIBRARY.md`.
+The feature flag is deliberately false in `config.js` until that migration is
+installed in `zkffujfbzbxoexohcmwk` and live Storage privacy verified. No production
+SQL, buckets, or data were changed, and these changes have not been published.
+Supabase integration was discovered but is not connected. The user asked how to
+connect; instructions were given in chat. Await connection, then inspect existing
+Storage policies, install the additive migration, verify real authenticated
+upload/download and account isolation, enable the flag and publish. Do not copy
+credentials from browser storage or ask for secret keys in chat.
+
+Checks passed: 36 unit/database tests (PGlite Storage-schema fixture), existing
+browser suite, rich-editor browser suite, and new PDF browser suite. The latter
+uses real vendored PDF.js/TUS with a mocked cloud API and covers import,
+rename/category moves, second-device viewing, owner isolation, notes/position,
+read status, trash/restore, failed deletion and retry, failed upload completion
+and retry, full offline reload, explicit note-conflict review, cached-copy cleanup
+on another device, and pause/resume at the acknowledged 6 MiB chunk offset.
+Desktop/mobile screenshots are in ignored `test-results/pdf-library-*.png`.
+Vendor assets are reproducible via `npm run vendor:pdf`; licenses are bundled.
+
+
+### PDF backend activated — 2026-11-08
+
+The connected Supabase plugin is installed but its tools remain absent from this
+older session. Used the authenticated Chrome Supabase dashboard instead. Inspected
+Reader Notes only: no prior Storage buckets or policies, PDF tables absent.
+Installed pdf-library.sql successfully. Ran pdf-library-verify.sql on the live
+database with rollback-only users/data; all checks passed. Verified bucket private,
+25 MiB PDF-only limit, three Storage policies, zero fixture users remaining.
+Anonymous reader_pdfs REST request returned 401. Feature flag enabled locally.
+Organization free-plan egress warning observed (9.19 / 5 GB); billing unchanged.
