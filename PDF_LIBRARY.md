@@ -144,3 +144,23 @@ The vendor script generates both files. Run `npm run test:pdf-webkit` with the
 local Playwright path if necessary to check rendering, worker initialization,
 search, reopen and startup-error cleanup with newer browser features disabled.
 This is a WebKit regression test, not a physical iPad certification.
+
+
+### Study Studio PDF display — 2026-11-08
+
+Adopted Mozilla's full continuous PDFViewer with the existing matched legacy
+renderer/worker, bounded Blob ranges and Safari compatibility fallback. Reader
+controls are grouped into Navigate, View, Panes & layout, Read aloud and Files.
+Added fit width/page, actual size/presets, rotation, fullscreen (maximize fallback),
+reading mode, collapsible notes, duplicate views and another-PDF comparison.
+Each pane has independent search/navigation/zoom/rotation and a visible focus
+indicator. Phone splits stack vertically. Notes and file actions target the
+primary PDF; read aloud targets the active pane's selection or current page.
+Scanned pages without searchable text require OCR. Speech uses browser voices.
+
+Fractional scroll position, zoom and rotation are browser/account-scoped under
+pdf-views; notes visibility and split direction under pdf-workspace. The primary
+page number still synchronizes through existing PDF metadata. Sign-out clears
+these local settings. Comparison shares the parsed document for duplicate views;
+separate PDFs keep independent document lifecycles. No cloud schema, privacy,
+storage limits or billing changes. Device-only sources retain existing behavior.

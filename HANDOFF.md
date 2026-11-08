@@ -469,3 +469,31 @@ Promise.withResolvers/Iterator disabled in the worker. Covers canvas/text layer,
 search/reopen and injected startup-error loading cleanup. All 36 unit/database
 tests and full Chromium cloud/offline/125 MiB PDF workflow passed. Physical iPad
 confirmation remains pending. No stored user files or cloud schema were changed.
+
+
+### Study Studio PDF display — 2026-11-08
+
+Adopted Mozilla's full continuous PDFViewer with the existing matched legacy
+renderer/worker, bounded Blob ranges and Safari compatibility fallback. Reader
+controls are grouped into Navigate, View, Panes & layout, Read aloud and Files.
+Added fit width/page, actual size/presets, rotation, fullscreen (maximize fallback),
+reading mode, collapsible notes, duplicate views and another-PDF comparison.
+Each pane has independent search/navigation/zoom/rotation and a visible focus
+indicator. Phone splits stack vertically. Notes and file actions target the
+primary PDF; read aloud targets the active pane's selection or current page.
+Scanned pages without searchable text require OCR. Speech uses browser voices.
+
+Fractional scroll position, zoom and rotation are browser/account-scoped under
+pdf-views; notes visibility and split direction under pdf-workspace. The primary
+page number still synchronizes through existing PDF metadata. Sign-out clears
+these local settings. Comparison shares the parsed document for duplicate views;
+separate PDFs keep independent document lifecycles. No cloud schema, privacy,
+storage limits or billing changes. Device-only sources retain existing behavior.
+
+Validation: 36 unit/database tests, existing article/account browser suite, full
+cloud/offline/125 MiB device workflow, and focused Chromium/WebKit renderer tests.
+New checks cover duplicate independent rotation/zoom, restored view settings,
+separate-file comparison, notes/reading mode, maximize/restore, split direction,
+fractional continuous-scroll restoration and mocked browser speech controls.
+WebKit checks disable newer page/worker APIs; physical iPad confirmation remains
+pending. Browser speech output is mocked in automation, not audio-certified.

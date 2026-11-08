@@ -1,6 +1,7 @@
 import {DevicePdfs} from './device-pdfs.js';
 import {PdfCloud} from './pdf-cloud.js';
 import {PdfViewer} from './pdf-viewer.js';
+import {PdfSpeech} from './pdf-speech.js';
 import {pdfBook,validatePdf,pdfFingerprint,PDF_MAX_BYTES} from './pdf-library-model.js';
 import {TAXONOMY} from './library-taxonomy.js';
 import * as db from './storage.js';
@@ -14,9 +15,30 @@ export class PdfLibrary{
   const editDialog=document.createElement('dialog');editDialog.id='pdf-edit-dialog';editDialog.innerHTML=`<form id="pdf-edit-form"><div class="dialog-heading"><h2 id="pdf-edit-heading">PDF details</h2><button id="pdf-edit-close" type="button" aria-label="Close details">×</button></div><label id="pdf-edit-title-label">Title<input id="pdf-edit-title" maxlength="200" required></label><label>Category<select id="pdf-edit-category" required></select></label><label id="pdf-edit-new-label" hidden>New category name<input id="pdf-edit-new" maxlength="120"></label><p id="pdf-edit-status" role="status"></p><button class="primary">Save changes</button></form>`;
   document.body.append(importDialog,editDialog);
   const workspace=document.createElement('section');workspace.id='pdf-workspace';workspace.hidden=true;
-  workspace.innerHTML=`<div class="pdf-heading"><button id="pdf-library-back">← Library</button><h1 id="pdf-library-title"></h1><button id="pdf-edit-details">Details & category</button><button id="pdf-completed">Mark as read</button><button id="pdf-trash">Move to trash</button><button id="pdf-download-original">Download PDF</button><button id="pdf-remove-offline">Remove offline copy</button></div><p id="pdf-library-status" role="status"></p><div id="pdf-reader"></div><label class="pdf-notes-label">Private reading notes<textarea id="pdf-reading-notes" maxlength="1000000" placeholder="Notes about this PDF…"></textarea></label><p id="pdf-notes-status" role="status"></p>`;
+  workspace.innerHTML=`<div class="pdf-heading"><button id="pdf-library-back">← Library</button><h1 id="pdf-library-title"></h1><span id="pdf-active-label">Primary pane</span><button id="pdf-toggle-notes" aria-pressed="true">Notes</button><button id="pdf-reading-mode" aria-pressed="false">Reading mode</button></div>
+  <nav class="pdf-tool-blocks" id="pdf-tools" aria-label="PDF reading tools">
+   <details id="pdf-navigate-block" open><summary>Navigate</summary><div class="pdf-tool-body" id="pdf-navigate-tools"></div></details>
+   <details id="pdf-view-block"><summary>View</summary><div class="pdf-tool-body" id="pdf-view-tools"></div><div class="pdf-tool-body"><button id="pdf-maximize">Maximize active pane</button><button id="pdf-fullscreen">Full screen</button></div></details>
+   <details id="pdf-layout-block"><summary>Panes & layout</summary><div class="pdf-tool-body"><button id="pdf-duplicate">Duplicate view</button><label>Compare PDF<select id="pdf-compare-document"><option value="">Choose another PDF…</option></select></label><button id="pdf-open-compare">Open comparison</button><label>Split<select id="pdf-pane-layout"><option value="beside">Beside</option><option value="below">Below</option></select></label><button id="pdf-close-compare">Close comparison</button></div></details>
+   <details id="pdf-speech-block"><summary>Read aloud</summary><div class="pdf-tool-body" id="pdf-speech-tools"></div></details>
+   <details id="pdf-files-block"><summary>Files</summary><div class="pdf-tool-body"><button id="pdf-edit-details">Details & category</button><button id="pdf-completed">Mark as read</button><button id="pdf-trash">Move to trash</button><button id="pdf-download-original">Download PDF</button><button id="pdf-remove-offline">Remove offline copy</button></div></details>
+  </nav><p id="pdf-library-status" role="status"></p>
+  <div class="pdf-workspace-body"><div class="pdf-pane-grid" id="pdf-pane-grid"><section class="pdf-pane active" id="pdf-primary-pane"><header><button id="pdf-focus-primary" aria-pressed="true">Primary pane</button><span id="pdf-primary-title"></span></header><div id="pdf-reader"></div></section><section class="pdf-pane" id="pdf-secondary-pane" hidden><header><button id="pdf-focus-secondary" aria-pressed="false">Comparison pane</button><span id="pdf-secondary-title"></span><button id="pdf-secondary-close" aria-label="Close comparison pane">×</button></header><div id="pdf-secondary-reader"></div></section></div>
+   <aside class="pdf-notes-sidebar" id="pdf-notes-sidebar"><header><strong id="pdf-notes-heading">Reading notes</strong><button id="pdf-close-notes" aria-label="Close reading notes">×</button></header><label class="pdf-notes-label">Private notes for the primary PDF<textarea id="pdf-reading-notes" maxlength="1000000" placeholder="Notes about this PDF…"></textarea></label><p id="pdf-notes-status" role="status"></p></aside></div>`;
   document.querySelector('main').append(workspace);
-  this.viewer=new PdfViewer($('pdf-reader'),{onPage:page=>this.queuePatch({last_page:page}),onError:error=>this.notify(error.message,true)});
+  for(const block of workspace.querySelectorAll('.pdf-tool-blocks>details')){const trays=[...block.querySelectorAll('.pdf-tool-body')];for(const tray of trays){tray.hidden=!block.open;$('pdf-tools').append(tray);}block.addEventListener('toggle',()=>{for(const tray of trays)tray.hidden=!block.open;});}
+  this.viewer=new PdfViewer($('pdf-reader'),{onPage:page=>this.queuePatch({last_page:page}),onView:view=>this.rememberView('primary',view),onFocus:()=>this.focusPane('primary'),onError:error=>this.notify(error.message,true),navigateHost:$('pdf-navigate-tools'),viewHost:$('pdf-view-tools')});
+  this.secondaryViewer=new PdfViewer($('pdf-secondary-reader'),{prefix:'pdf-compare',onView:view=>this.rememberView('secondary',view),onFocus:()=>this.focusPane('secondary'),onError:error=>this.notify(error.message,true),navigateHost:$('pdf-navigate-tools'),viewHost:$('pdf-view-tools')});
+  this.speech=new PdfSpeech($('pdf-speech-tools'),{viewer:()=>this.activeViewer,notify});this.focusPane('primary');
+  $('pdf-focus-primary').onclick=()=>this.focusPane('primary');$('pdf-focus-secondary').onclick=()=>this.focusPane('secondary');
+  $('pdf-duplicate').onclick=()=>this.run(()=>this.openComparison(this.active.id,true));
+  $('pdf-open-compare').onclick=()=>this.run(()=>this.openComparison($('pdf-compare-document').value));
+  $('pdf-close-compare').onclick=$('pdf-secondary-close').onclick=()=>this.closeComparison();
+  $('pdf-pane-layout').onchange=()=>{this.preferences.split=$('pdf-pane-layout').value;this.applyWorkspace();void this.saveWorkspace();};
+  $('pdf-toggle-notes').onclick=()=>{this.preferences.notes=!this.preferences.notes;this.applyWorkspace();void this.saveWorkspace();};$('pdf-close-notes').onclick=()=>{this.preferences.notes=false;this.applyWorkspace();void this.saveWorkspace();};
+  $('pdf-reading-mode').onclick=()=>{this.readingMode=!this.readingMode;$('pdf-tools').hidden=this.readingMode;$('pdf-reading-mode').textContent=this.readingMode?'Show tools':'Reading mode';$('pdf-reading-mode').setAttribute('aria-pressed',String(this.readingMode));};
+  $('pdf-maximize').onclick=()=>{this.maximized=this.maximized?null:(this.activeViewer===this.secondaryViewer?'secondary':'primary');this.applyWorkspace();};
+  $('pdf-fullscreen').onclick=()=>{if(document.fullscreenElement){void document.exitFullscreen().catch(error=>notify(error.message,true));}else if(workspace.requestFullscreen)void workspace.requestFullscreen().catch(()=>{this.maximized=this.activeViewer===this.secondaryViewer?'secondary':'primary';this.applyWorkspace();});else{this.maximized=this.activeViewer===this.secondaryViewer?'secondary':'primary';this.applyWorkspace();notify('Pane maximized. This browser does not offer full-screen mode.');}};
   $('import-pdf').onclick=()=>this.run(()=>this.openImport());
   $('pdf-import-file').onchange=()=>{const file=$('pdf-import-file').files[0];if(file){$('pdf-import-title').value=file.name.replace(/\.pdf$/i,'').slice(0,200);if(!this.pendingImport&&file.size>PDF_MAX_BYTES)$('pdf-import-storage').value='device';this.paintImportMode();}};
   $('pdf-import-storage').onchange=()=>this.paintImportMode();
@@ -43,7 +65,7 @@ export class PdfLibrary{
  get books(){return this.items.filter(r=>r.status!=='purged').map(r=>pdfBook(r,this.categoryOptions()));}
  categoryOptions(){const built=Object.entries(TAXONOMY.CATEGORIES).map(([id,[title]])=>({id,title}));built.push({id:'personal',title:'My reading materials'},{id:'other',title:'Other reading materials'});const result=new Map(built.map(c=>[c.id,c]));for(const c of this.categories)result.set(c.id,c);for(const record of this.device.records)if(!result.has(record.category_id))result.set(record.category_id,{id:record.category_id,title:record.category_title});return [...result.values()];}
  async activate(){
-  this.reset();this.owner=this.context().scope;await this.device.activate(this.owner);const cached=await db.getSetting(this.key);
+  this.reset();this.owner=this.context().scope;await this.device.activate(this.owner);this.views=await db.getSetting(`pdf-views:${this.owner}`)||{};this.preferences=await db.getSetting(`pdf-workspace:${this.owner}`)||{notes:matchMedia('(min-width:900px)').matches,split:'beside'};this.applyWorkspace();const cached=await db.getSetting(this.key);
   if(cached){this.records=cached.records||[];this.categories=cached.categories||[];this.assignments=cached.assignments||[];}
   this.drafts=await db.getSetting(`pdf-drafts:${this.owner}`)||{};
  }
@@ -56,6 +78,7 @@ export class PdfLibrary{
    await db.deleteAsset(this.owner,'cloud-pdf:'+record.id);await db.setSetting(`pdf-upload:${this.owner}:${record.id}`,null);delete this.drafts[record.id];
   }
   await db.setSetting(`pdf-drafts:${this.owner}`,this.drafts);await this.persist();
+  if(this.comparison&&this.comparison.storage!=='device'){const next=this.records.find(r=>r.id===this.comparison.id);if(!next||next.deleted||next.status!=='ready')this.closeComparison();}
   if(this.active&&this.active.storage!=='device'){const next=this.records.find(r=>r.id===this.active.id);if(!next||next.deleted||next.status!=='ready'){this.close();this.onClose();this.notify('This PDF was removed on another device.');}
    else if(!this.drafts[next.id]){this.active=next;this.paint(next);}}
  }
@@ -126,18 +149,18 @@ export class PdfLibrary{
   try{let blob=record.storage==='device'?await this.device.file(record):(await db.getAsset(this.owner,'cloud-pdf:'+id))?.file;
    if(!blob){this.requireCloud();blob=await this.api.file(record,{signal:this.downloadController.signal});if(request!==this.openRequest||generation!==this.generation)return;await db.putAsset(this.owner,'cloud-pdf:'+id,blob);}
    if(request!==this.openRequest||generation!==this.generation)return;
-   this.blob=blob;await this.viewer.open(blob,record.last_page);$('pdf-library-status').textContent=record.storage==='device'?(record.kept?'Device-only PDF · browser copy saved · no cloud upload':'Device-only PDF · select the source file again after reopening · no cloud upload'):navigator.onLine?'Private cloud PDF · offline copy available on this device':'Offline copy · changes will sync when connected';
+   this.blob=blob;$('pdf-primary-title').textContent=record.title;this.updateComparisons();await this.viewer.open(blob,this.views?.['primary:'+record.id]||record.last_page);$('pdf-library-status').textContent=record.storage==='device'?(record.kept?'Device-only PDF · browser copy saved · no cloud upload':'Device-only PDF · select the source file again after reopening · no cloud upload'):navigator.onLine?'Private cloud PDF · offline copy available on this device':'Offline copy · changes will sync when connected';
   }catch(error){if(request===this.openRequest&&generation===this.generation&&error.name!=='AbortError'){$('pdf-library-status').textContent='Could not open PDF. Return to Library and retry.';throw error;}}
  }
- paint(record){$('pdf-remove-offline').hidden=record.storage==='device'&&!record.kept;$('pdf-library-title').textContent=record.title;$('pdf-completed').textContent=record.completed?'Mark as unread':'Mark as read';$('pdf-reading-notes').value=this.drafts[record.id]?.patch?.notes??record.notes;}
- close(){clearTimeout(this.noteTimer);this.openRequest=(this.openRequest||0)+1;this.downloadController?.abort();this.viewer.close();this.active=null;this.blob=null;$('pdf-workspace').hidden=true;document.body.classList.remove('pdf-open');$('pdf-reading-notes').value='';}
+ paint(record){$('pdf-notes-heading').textContent='Notes · '+record.title;$('pdf-primary-title').textContent=record.title;$('pdf-remove-offline').hidden=record.storage==='device'&&!record.kept;$('pdf-library-title').textContent=record.title;$('pdf-completed').textContent=record.completed?'Mark as unread':'Mark as read';$('pdf-reading-notes').value=this.drafts[record.id]?.patch?.notes??record.notes;}
+ close(){this.speech?.stop();this.closeComparison();clearTimeout(this.noteTimer);this.openRequest=(this.openRequest||0)+1;this.downloadController?.abort();this.viewer.close();this.active=null;this.blob=null;$('pdf-workspace').hidden=true;document.body.classList.remove('pdf-open');$('pdf-reading-notes').value='';}
  queuePatch(patch){
   if(!this.active)return;if(this.active.storage==='device'){this.draftWrite=this.change(this.active,'update',patch).then(next=>{if(this.active?.id===next.id)this.active=next;$('pdf-notes-status').textContent='Notes and reading position saved on this device only';}).catch(error=>this.notify(error.message,true));return;}const old=this.drafts[this.active.id];this.drafts[this.active.id]={revision:old?.revision??this.active.revision,patch:{...old?.patch,...patch}};
   this.draftWrite=db.setSetting(`pdf-drafts:${this.owner}`,this.drafts);$('pdf-notes-status').textContent='Saved on this device · waiting to sync';
   clearTimeout(this.noteTimer);this.noteTimer=setTimeout(()=>this.flush().catch(error=>{$('pdf-notes-status').textContent=error.message;}),900);
  }
  async flush(){
-  clearTimeout(this.noteTimer);await this.draftWrite;
+  this.viewer.capture();clearTimeout(this.noteTimer);await this.draftWrite;await this.viewWrite;
   if(this.flushing)return this.flushing;
   this.flushing=this.flushDrafts().finally(()=>{this.flushing=null;});return this.flushing;
  }
@@ -193,5 +216,19 @@ export class PdfLibrary{
   }catch(error){$('pdf-edit-status').textContent=error.message;throw error;}
  }
  async download(){if(!this.blob)throw Error('Open the PDF before downloading.');const url=URL.createObjectURL(this.blob),link=element('a','Download');link.href=url;link.download=this.active.filename||this.active.title+'.pdf';link.click();setTimeout(()=>URL.revokeObjectURL(url),3000);}
+ get activeViewer(){return this.focusedPane==='secondary'&&this.comparison?this.secondaryViewer:this.viewer;}
+ focusPane(pane){if(pane==='secondary'&&!this.comparison)return;const changed=this.focusedPane!==pane;this.focusedPane=pane;this.viewer.setActive(pane==='primary');this.secondaryViewer.setActive(pane==='secondary');$('pdf-active-label').textContent=pane==='primary'?'Primary pane':'Comparison pane';$('pdf-focus-primary').setAttribute('aria-pressed',String(pane==='primary'));$('pdf-focus-secondary').setAttribute('aria-pressed',String(pane==='secondary'));if(changed)this.speech?.stop();}
+ rememberView(pane,view){const record=pane==='primary'?this.active:this.comparison;if(!record||!this.owner)return;this.views??={};this.views[pane+':'+record.id]=view;this.viewWrite=db.setSetting(`pdf-views:${this.owner}`,this.views);}
+ async saveWorkspace(){if(this.owner)await db.setSetting(`pdf-workspace:${this.owner}`,this.preferences);}
+ applyWorkspace(){if(!this.preferences)this.preferences={notes:matchMedia('(min-width:900px)').matches,split:'beside'};$('pdf-notes-sidebar').hidden=!this.preferences.notes;$('pdf-toggle-notes').setAttribute('aria-pressed',String(this.preferences.notes));$('pdf-pane-layout').value=this.preferences.split;$('pdf-pane-grid').dataset.layout=this.preferences.split;$('pdf-pane-grid').dataset.maximized=this.maximized||'';$('pdf-workspace').classList.toggle('pdf-pane-maximized',Boolean(this.maximized));$('pdf-maximize').textContent=this.maximized?'Restore panes':'Maximize active pane';$('pdf-close-compare').disabled=!this.comparison;}
+ updateComparisons(){const select=$('pdf-compare-document');select.replaceChildren(new Option('Choose another PDF…',''));for(const record of this.items.filter(r=>r.status==='ready'&&!r.deleted&&r.id!==this.active?.id))select.add(new Option(record.title+(record.storage==='device'?' · device only':''),record.id));}
+ async openComparison(id,duplicate=false){
+  if(!this.active||!this.viewer.document||!id)throw Error('Open a PDF and choose a document to compare.');const record=this.findRecord(id);if(!record||record.deleted||record.status!=='ready')throw Error('PDF unavailable.');
+  const generation=this.generation;let blob;if(!duplicate){blob=record.storage==='device'?await this.device.file(record):(await db.getAsset(this.owner,'cloud-pdf:'+id))?.file;if(!blob&&record.storage==='device')throw Error('Open this device-only PDF from the Library and select its source file first.');if(!blob){this.requireCloud();blob=await this.api.file(record);if(generation!==this.generation)return;await db.putAsset(this.owner,'cloud-pdf:'+id,blob);}}
+  if(generation!==this.generation||!this.active)return;this.closeComparison();this.comparison=record;this.maximized=null;$('pdf-secondary-pane').hidden=false;$('pdf-secondary-title').textContent=record.title;this.applyWorkspace();
+  const state=this.views?.['secondary:'+id]||(duplicate?this.viewer.getState():{page:record.last_page});
+  try{if(duplicate)await this.secondaryViewer.share(this.viewer.document,state);else await this.secondaryViewer.open(blob,state);if(generation===this.generation)this.focusPane('secondary');}catch(error){this.closeComparison();throw error;}
+ }
+ closeComparison(){this.speech?.stop();this.secondaryViewer?.close();this.comparison=null;this.maximized=null;this.focusPane('primary');$('pdf-secondary-pane').hidden=true;this.applyWorkspace();}
  get hasPending(){return this.uploading||Object.keys(this.drafts).length>0;}
 }
