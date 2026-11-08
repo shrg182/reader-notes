@@ -450,3 +450,22 @@ browser suite; PDF browser suite with a sparse 125 MiB file. Large-file checks
 cover range reads, source reselection, optional browser persistence, retained
 notes, local categories, trash/restore/removal and no cloud record/object creation.
 See PDF_LIBRARY.md for user choices and limits.
+
+### iPad/Safari PDF startup compatibility — 2026-11-08
+
+User reported Cannot access uninitialized variable on an iPad while opening
+engineering_cybernetics_en_1954. Exact device failure was not reproduced in current
+WebKit. Mozilla recommends its legacy build for Safari; replaced the modern
+library/worker with matched 6.5.438 legacy builds at new .compat.mjs URLs. Both
+include a small Promise.withResolvers fallback before PDF.js initializes, covering
+older Safari API availability. New URLs plus SW cache bump avoid retaining failed
+modern modules or mixing old worker caches. Assets remain reproducible through
+vendor:pdf and retain Mozilla's license.
+
+Moved viewer error handling around dynamic import/setup too, so initialization
+failures clear Loading PDF and offer retry/download. Added focused PDF renderer
+browser test (no cloud mocks): WebKit passes with newer page APIs disabled and
+Promise.withResolvers/Iterator disabled in the worker. Covers canvas/text layer,
+search/reopen and injected startup-error loading cleanup. All 36 unit/database
+tests and full Chromium cloud/offline/125 MiB PDF workflow passed. Physical iPad
+confirmation remains pending. No stored user files or cloud schema were changed.

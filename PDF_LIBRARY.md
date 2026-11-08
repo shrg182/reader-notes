@@ -135,3 +135,12 @@ allocating an array buffer for the entire file before rendering. The browser tes
 uses a sparse 125 MiB PDF and verifies rendering, source reselection, optional
 browser storage, retained notes, trash/restore/removal, bounded reads, and no
 cloud file or category creation.
+
+## Safari compatibility
+
+The reader and worker use matched PDF.js legacy builds (`pdf.compat.mjs` and
+`pdf.worker.compat.mjs`) with a Promise.withResolvers fallback for older Safari.
+The vendor script generates both files. Run `npm run test:pdf-webkit` with the
+local Playwright path if necessary to check rendering, worker initialization,
+search, reopen and startup-error cleanup with newer browser features disabled.
+This is a WebKit regression test, not a physical iPad certification.

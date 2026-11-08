@@ -12,8 +12,8 @@ export class PdfViewer{
  }
  async open(blob,page=1){
   this.close();const generation=this.generation;this.$('pdf-view-status').textContent='Loading PDF…';
-  this.library=await import('./vendor/pdfjs/pdf.mjs');
-  this.library.GlobalWorkerOptions.workerSrc=new URL('./vendor/pdfjs/pdf.worker.mjs',import.meta.url).href;
+  try{this.library=await import('./vendor/pdfjs/pdf.compat.mjs');
+  this.library.GlobalWorkerOptions.workerSrc=new URL('./vendor/pdfjs/pdf.worker.compat.mjs',import.meta.url).href;
   // Read bounded slices from local/browser blobs instead of copying a 125 MB
   // file into memory before the first page. PDF.js requests the needed ranges.
   const initial=new Uint8Array(await blob.slice(0,65536).arrayBuffer());
@@ -31,8 +31,8 @@ export class PdfViewer{
    wasmUrl:new URL('./vendor/pdfjs/wasm/',import.meta.url).href});
   if(generation!==this.generation){await task.destroy();return;}this.loading=task;
   task.onPassword=(update,reason)=>{const password=prompt(reason===2?'Incorrect PDF password. Try again:':'This PDF is password protected. Enter its password:');if(password===null){void task.destroy();this.onError(Error('PDF opening cancelled.'));}else update(password);};
-  try{const document=await task.promise;if(generation!==this.generation){await document.destroy();return;}this.document=document;this.page=Math.max(1,Math.min(document.numPages,page));await this.render();}
-  catch(error){if(generation===this.generation){this.$('pdf-view-status').textContent='This PDF could not be displayed. You can download the original file.';throw error;}}
+  const document=await task.promise;if(generation!==this.generation){await document.destroy();return;}this.document=document;this.page=Math.max(1,Math.min(document.numPages,page));await this.render();}
+  catch(error){if(generation===this.generation){this.$('pdf-view-status').textContent='This PDF could not be displayed. Reload the app and retry, or use Download PDF to open the original file.';throw error;}}
  }
  async go(page){if(!this.document)return;this.page=Math.max(1,Math.min(this.document.numPages,Number.isFinite(page)?Math.floor(page):1));await this.render();this.onPage(this.page);}
  render(){
