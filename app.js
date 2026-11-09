@@ -1,4 +1,5 @@
 import {PdfLibrary} from './pdf-library.js';
+import {LinkImporter} from './link-import.js';
 import {TAXONOMY} from './library-taxonomy.js';
 import {RichEditor} from './rich-editor.js';
 import {catalogTitle,articleRows,classifyImport,groupedBooks} from './library-groups.js';
@@ -43,9 +44,10 @@ const rich=new RichEditor({context:()=>({scope,books,book:current()}),notify,
 tools.rich=rich;rich.onLoaded=()=>tools.syncRichPanels();
 rich.onSelection=value=>{tools.selected=value;};
 const pdfLibrary=new PdfLibrary({editArticle:id=>openBook(id),getArticles:()=>books.filter(b=>!b.deleted).map(b=>({id:b.id,title:b.title,content:b.content})),cloud,context:()=>({scope,busy}),notify,run,onChanged:()=>{render();updateAccount();},
- onOpen:async()=>{if(!tools.confirmLeave())throw Error('Save your vocabulary changes first.');await saveDraft();rich.close();closePdf();active=null;$('library-view').hidden=true;$('workspace-view').hidden=true;},
+ onOpen:async()=>{linkImports.showSource(null);if(!tools.confirmLeave())throw Error('Save your vocabulary changes first.');await saveDraft();rich.close();closePdf();active=null;$('library-view').hidden=true;$('workspace-view').hidden=true;},
  onClose:()=>{$('library-view').hidden=false;render();}
 });
+const linkImports=new LinkImporter({cloud,pdfs:pdfLibrary,context:()=>({scope}),notify,run,openText:id=>openBook(id),onChanged:async()=>{await sync();await pdfLibrary.refresh();render();}});
 function libraryBooks(){const categoryIndex=new Map(pdfLibrary.categoryOptions().map(c=>[c.id,c.title]));return [...books.map(book=>{const category=pdfLibrary.assignments.find(a=>a.document_id===book.id);return category?{...book,categoryId:category.category_id,categoryTitle:categoryIndex.get(category.category_id)||'My reading materials'}:book;}),...pdfLibrary.books];}
 function node(tag,text,className){const n=document.createElement(tag);n.textContent=text;if(className)n.className=className;return n;}
 function button(text,fn){const b=node('button',text);b.onclick=()=>run(fn);return b;}
@@ -81,7 +83,7 @@ async function loadScope(){
   $('review-dialog').close();$('review-body').replaceChildren();$('review-actions').replaceChildren();
   $('workspace-view').hidden=true;$('library-view').hidden=false;
   $('identity').textContent=cloud.session?'Private library':'Local library · this browser';
-  await tools.activate();await complete.activate();await pdfLibrary.activate();render();void loadActivity();updateAccount();ready=true;document.querySelector('main').inert=false;document.querySelector('.topbar').inert=false;
+  await tools.activate();await complete.activate();await pdfLibrary.activate();await linkImports.activate();render();void loadActivity();updateAccount();ready=true;document.querySelector('main').inert=false;document.querySelector('.topbar').inert=false;
 }
 function render(){
   const query=$('search').value.toLocaleLowerCase(),trash=$('show-trash').checked;
@@ -133,7 +135,7 @@ async function hydrateRich(book){const meta=complete.meta.find(x=>x.bookId===boo
 async function openBook(id){
   if(!tools.confirmLeave())return;
   await pdfLibrary.flush();pdfLibrary.close();
-  await saveDraft();rich.close();closePdf();active=id;paintEditor(current());
+  await saveDraft();rich.close();closePdf();active=id;paintEditor(current());linkImports.showSource(id);
   $('library-view').hidden=true;$('workspace-view').hidden=false;
   const asset=await db.getAsset(scope,id);if(asset)showPdf(asset.file);
   await tools.activate();await complete.activate();
@@ -346,7 +348,7 @@ $('reauthenticate').onclick=()=>{$('credentials').hidden=false;$('password').foc
 $('sign-out').onclick=()=>run(async()=>{
   if(!tools.confirmLeave())return;
   await saveDraft();
-  if(books.some(b=>b.dirty||b.conflict)||pdfLibrary.hasPending){
+  if(books.some(b=>b.dirty||b.conflict)||pdfLibrary.hasPending||linkImports.running){
     review('Save your pending work');$('review-body').append(node('p','This account has device drafts or conflicts. Sync or export a backup before signing out. Signing out clears this account’s device cache.'));
     $('review-actions').append(button('Keep account open',()=>{$('review-dialog').close();$('account-dialog').close();}));return;
   }
@@ -369,7 +371,7 @@ $('recovery-form').onsubmit=e=>{e.preventDefault();run(async()=>{
   catch(error){$('recovery-status').textContent=error.message;throw error;}
 });};
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>$(b.dataset.close).close());
-window.addEventListener('beforeunload',e=>{if(unsaved||busy||tools.wordDirty||pdfLibrary.uploading){e.preventDefault();e.returnValue='';}});
+window.addEventListener('beforeunload',e=>{if(unsaved||busy||tools.wordDirty||pdfLibrary.uploading||linkImports.running){e.preventDefault();e.returnValue='';}});
 window.addEventListener('offline',updateAccount);
 window.addEventListener('online',()=>run(sync));
 setInterval(()=>{if(!busy&&!unsaved&&cloud.session&&!document.querySelector('dialog[open]')&&!['INPUT','TEXTAREA'].includes(document.activeElement.tagName))run(sync);},60_000);

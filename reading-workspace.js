@@ -32,7 +32,7 @@ export class ReadingWorkspace{
   }finally{if(token===this.restoreVersion){this.restoring=false;if(this.key===key&&version===h.generation)this.save();}}
  }
  async openSource(id){const h=this.host,version=h.generation;await h.flush();let result,error;try{result=await this.resolve(id);}catch(e){error=e;}if(version!==h.generation)return;const saved=this.sessions[id];if(!result&&!saved)throw error;
-  await h.onOpen();if(version!==h.generation)return;h.close();$('pdf-workspace').hidden=false;document.body.classList.add('pdf-open');$('pdf-library-title').textContent=result?.source.title||saved.panes[0]?.title||'Reading workspace';$('pdf-library-status').textContent='Saved reading workspace · companion files and notes stay on this browser';this.key=id;
+  await h.onOpen();if(version!==h.generation)return;h.close();$('pdf-workspace').hidden=false;document.body.classList.add('pdf-open');h.onSource?.(id.startsWith('article:')?id.slice(8):id.startsWith('pdf:')?id.slice(4):null);$('pdf-library-title').textContent=result?.source.title||saved.panes[0]?.title||'Reading workspace';$('pdf-library-status').textContent='Saved reading workspace · companion files and notes stay on this browser';this.key=id;
   if(saved)await this.restore(saved);else{await h.mixed.add(result.source,result.blob,result.text);this.save();}
  }
  async resume(){if(!this.last)return;return this.last.startsWith('pdf:')?this.host.open(this.last.slice(4)):this.openSource(this.last);}

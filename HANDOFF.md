@@ -581,3 +581,34 @@ PDF/article anchors, companions on close/reload, missing bytes and wrong/right
 reselection, image rotation/notes, paused video time/rate, duplicate comparison
 state, explicit removal, Reset, anchor-close preservation, Edit article, Resume
 and scoped cleanup. Physical iPad testing remains pending.
+
+
+### From Links import — 2026-11-09
+
+Implemented the supplied docs/plans/reader_notes_import_ai_feature_spec.md's
+priority link-import slice. Library Import links opens a responsive batch URL
+screen with destination category/new category, tags, duplicate review/skip,
+server-streamed stages, recoverable per-row errors/retry and reader actions.
+PDF/TXT/MD/simple HTML only; no AI, OCR, DOCX/EPUB or cloud-drive authorization.
+PDFs retain original bytes privately; text/articles normalize into existing
+editable documents. Source attribution is cached per account and shown in readers.
+
+Added supabase/link-import.sql, live rollback verification, and reader-import-link
+Edge Function with authenticated owner APIs, source SHA deduplication and limits.
+Server DNS checks all resolved addresses and pins the connection to a public IP,
+validates redirect destinations/robots policies, retains TLS host verification,
+and bounds bodies/decompression/time. No user auth/cookies reach source sites.
+Limits: 20 MiB PDFs, 2 MiB text, 10 links/minute and 100/day/account. Existing
+storage policies, billing/plan and the private reader-pdfs bucket are unchanged.
+
+Installed in zkffujfbzbxoexohcmwk only through the existing authenticated Dashboard.
+Read-only policy checks and live owner/anonymous/duplicate rollback verification
+passed; fixture users left: 0. Downloaded deployed source matches the esbuild
+bundle after newline normalization. Function boots and returns its own 401 for
+unauthenticated requests. Existing article/account, cloud/offline/125 MiB PDF and
+WebKit saved-workspace suites passed, as did new batch import browser tests.
+Full signed-in live import smoke testing follows the Pages deployment.
+
+Dashboard reports existing org prior-cycle quota overrun; possible restrictions
+from 2026-12-08 if unresolved. No billing change was made. See
+ docs/plans/link-import-implementation.md for scope, limits and reproduction.
