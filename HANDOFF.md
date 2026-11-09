@@ -623,3 +623,14 @@ also exposed an unrelated full-library/archive statement timeout; import refresh
 now fetches only resulting text IDs and PDF/category metadata, preserving local
 edits through mergeRemote and avoiding archive synchronization. Browser tests
 assert no broad document listing is triggered by importing/opening results.
+
+
+Final From Links checkpoint: both live HTML/text and PDF readers rendered with
+correct source links. The final duplicate import returned Duplicate, preserving
+the existing Example Domain entry. The loopback address test failed safely while
+the other two batch items completed. Two small public-source verification entries
+remain in the user's private Library (Example Domain and dummy), tagged
+verification/from-links. No original user content was altered or removed.
+45 automated unit/database tests pass, plus link browser, article/account,
+cloud/offline/125 MiB PDF and WebKit saved-workspace regression suites. The live
+schema, function and frontend are enabled; project privacy and billing are unchanged.

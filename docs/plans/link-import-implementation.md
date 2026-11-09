@@ -87,7 +87,11 @@ source matches the reproducible bundle after trailing-newline normalization.
 The deployed runtime returns its own unauthenticated 401 response. Migration and
 live rollback-only owner/anonymous/duplicate verification passed; no fixture
 users remain and reader-pdfs remains private. Authenticated live HTML and PDF imports succeeded; a private-address URL failed
-safely while other imports continued. Reader and duplicate smoke checks follow the targeted-refresh correction.
+safely while other imports continued. Live readers displayed the imported article and privately stored PDF with source
+attribution. Re-importing the article returned Duplicate and kept its existing
+record. The targeted-refresh correction is deployed and avoids broad archive
+synchronization. Two small smoke-test entries (Example Domain and dummy) remain
+in the private Library, tagged verification/from-links.
 The hosted runtime required explicit node:buffer imports; a Deno regression test
 now runs with globalThis.Buffer disabled.
 
