@@ -42,7 +42,7 @@ const rich=new RichEditor({context:()=>({scope,books,book:current()}),notify,
 });
 tools.rich=rich;rich.onLoaded=()=>tools.syncRichPanels();
 rich.onSelection=value=>{tools.selected=value;};
-const pdfLibrary=new PdfLibrary({getArticles:()=>books.filter(b=>!b.deleted).map(b=>({id:b.id,title:b.title,content:b.content})),cloud,context:()=>({scope,busy}),notify,run,onChanged:()=>{render();updateAccount();},
+const pdfLibrary=new PdfLibrary({editArticle:id=>openBook(id),getArticles:()=>books.filter(b=>!b.deleted).map(b=>({id:b.id,title:b.title,content:b.content})),cloud,context:()=>({scope,busy}),notify,run,onChanged:()=>{render();updateAccount();},
  onOpen:async()=>{if(!tools.confirmLeave())throw Error('Save your vocabulary changes first.');await saveDraft();rich.close();closePdf();active=null;$('library-view').hidden=true;$('workspace-view').hidden=true;},
  onClose:()=>{$('library-view').hidden=false;render();}
 });
@@ -102,7 +102,7 @@ function render(){
     const ordered=articleRows(group.books,complete.meta);
     for(const row of ordered){
       const book=row.book;shown++;const card=node('article','','book');
-      const title=node('h2');if(trash)title.textContent=catalogTitle(row.title,group.collectionTitle);else{const link=button(catalogTitle(row.title,group.collectionTitle),()=>book.kind==='pdf'?pdfLibrary.open(book.id):openBook(book.id));link.className='article-title';link.title=row.title;title.append(link);}
+      const title=node('h2');if(trash)title.textContent=catalogTitle(row.title,group.collectionTitle);else{const link=button(catalogTitle(row.title,group.collectionTitle),()=>book.kind==='pdf'?pdfLibrary.open(book.id):pdfLibrary.workspace.has('article:'+book.id)?pdfLibrary.workspace.openSource('article:'+book.id):openBook(book.id));link.className='article-title';link.title=row.title;title.append(link);}
       const reading=node('p',book.kind==='pdf'?(book.completed?'Read · PDF':book.status==='uploading'?'PDF · Upload incomplete':'PDF · Page '+(pdfLibrary.findRecord(book.id)?.last_page||1)):activityText(row));reading.title='Original imported history plus visits on this browser. New visit counts remain on this device.';
       const editing=originalActivity['reading-workspace-editing-history-v1']?.[row.path];
       const lastEdit=book.history?.length?book.updatedAt:editing?.lastEdited;
@@ -350,7 +350,7 @@ $('sign-out').onclick=()=>run(async()=>{
     review('Save your pending work');$('review-body').append(node('p','This account has device drafts or conflicts. Sync or export a backup before signing out. Signing out clears this account’s device cache.'));
     $('review-actions').append(button('Keep account open',()=>{$('review-dialog').close();$('account-dialog').close();}));return;
   }
-  async function finish(){const oldScope=scope;await pdfLibrary.flush();pdfLibrary.close();await pdfLibrary.mixed.write;await pdfLibrary.viewWrite;tools.stop();await cloud.signOut();await db.clearAccount(oldScope);await loadScope();$('account-dialog').close();notify('Signed out on this device.');}
+  async function finish(){const oldScope=scope;await pdfLibrary.flush();pdfLibrary.close();await pdfLibrary.mixed.write;await pdfLibrary.viewWrite;await pdfLibrary.workspace.write;tools.stop();await cloud.signOut();await db.clearAccount(oldScope);await loadScope();$('account-dialog').close();notify('Signed out on this device.');}
   const study=await tools.exportStudy(books.map(book=>book.id));
   if(study.vocabulary.length||await sharing.countDrafts()){
     review('Back up personal study data');$('review-body').append(node('p','Vocabulary and contribution drafts may have device-only changes. Export a backup before signing out clears this account’s device cache. Migration source files must be retained separately.'));

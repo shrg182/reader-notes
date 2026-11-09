@@ -72,7 +72,7 @@ export async function clearAccount(scope) {
     tx.objectStore('settings').delete(`reading:${scope}`);
     tx.objectStore('settings').delete(`last-sync:${scope}`);
     tx.objectStore('settings').delete(`catalog-activity:${scope}`);
-    const imported=tx.objectStore('settings').openCursor();imported.onsuccess=()=>{const c=imported.result;if(c){if(String(c.key).startsWith(`import-record:${scope}:`)||String(c.key).startsWith(`pdf-upload:${scope}:`)||c.key===`pdf-library:${scope}`||c.key===`pdf-drafts:${scope}`||c.key===`pdf-device:${scope}`||c.key===`pdf-views:${scope}`||c.key===`pdf-workspace:${scope}`||c.key===`mixed-sources:${scope}`)c.delete();c.continue();}};
+    const imported=tx.objectStore('settings').openCursor();imported.onsuccess=()=>{const c=imported.result;if(c){if(String(c.key).startsWith(`import-record:${scope}:`)||String(c.key).startsWith(`pdf-upload:${scope}:`)||c.key===`pdf-library:${scope}`||c.key===`pdf-drafts:${scope}`||c.key===`pdf-device:${scope}`||c.key===`pdf-views:${scope}`||c.key===`pdf-workspace:${scope}`||c.key===`mixed-sources:${scope}`||c.key===`reading-workspaces:${scope}`)c.delete();c.continue();}};
     for(const device of ['phone','desktop'])tx.objectStore('settings').delete(`tools:${scope}:${device}`);
     for(const name of ['books','assets','migration_files','migration_batches']) {
       const request=tx.objectStore(name).openCursor();

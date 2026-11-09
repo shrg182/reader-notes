@@ -199,3 +199,36 @@ Records/notes/settings: mixed-sources:${scope}. Bytes: scoped mixed-file:${id}
 assets. Account sign-out warns about device sources/notes, flushes/closes panes,
 and clears the matching settings/assets. Other account scopes are unaffected.
 Service worker shell 0.12.0 includes mixed-panes.js and media-viewer.js.
+
+
+### Per-article saved reading workspaces — 2026-11-08
+
+Closing an article/workspace now saves its arrangement on this browser, per
+account and anchor article/PDF/device source. Reopening the same Library PDF or
+an article previously used as a mixed-workspace anchor restores companion order,
+individual view states, comparison/duplicate PDFs, layout, active/maximized pane,
+notes visibility and reading mode. Videos restore time/rate and remain paused.
+Explicit companion close removes it from the saved arrangement; closing the
+anchor preserves the whole workspace. Reset workspace retains the anchor and
+clears companions/layout. Resume workspace reopens the last saved anchor from
+the Library. Restored text articles offer Edit article to reach the editor.
+
+Unavailable local files retain labelled placeholders, per-file notes and slot
+positions. Select source file revalidates the original before replacing the
+placeholder; Retry opening retries Library/cached resources. Deleted/inaccessible
+Library resources are not resurrected. Forget saved source also removes saved
+workspace references. Sources without browser copies still need reselection
+after a reload; closing/reopening in the same session can reuse File references.
+
+ReadingWorkspace stores reading-workspaces:${scope}; it contains descriptors and
+view/layout state, not file bytes or additional copies of notes. Additional
+panes have stable slots and independent view states, even for duplicate sources.
+Snapshots save during reading and before teardown, with restoration/account
+change guards. Sign-out flushes/closes before scoped cleanup; other accounts are
+unaffected. Existing single-file reading positions and cloud notes remain intact.
+No Supabase schema, storage policy, limit or billing changes.
+
+browser-files.js shares the existing portable Blob/4 MiB byte-chunk fallback
+between device PDFs and mixed media, so Safari can retain a primary PDF browser
+copy as well. Existing Blob assets remain compatible. Service worker shell
+0.13.0 includes both new modules; deployment copies them with the app.

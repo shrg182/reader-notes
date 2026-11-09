@@ -409,3 +409,5 @@ body.pdf-open{height:100dvh;overflow:hidden;display:flex;flex-direction:column}b
 .mixed-notes-status{font-size:11px;margin:0;padding:5px 10px}.mixed-notes-status[hidden]{display:none}
 
 #pdf-pane-grid[data-maximized]:not([data-maximized=""]){grid-template-columns:minmax(0,1fr)!important;grid-template-rows:minmax(0,1fr)!important}
+
+.workspace-missing{padding:16px;font-size:14px;line-height:1.6}.mixed-content>.workspace-missing~button{margin:6px 16px;align-self:start}#resume-reading-workspace{white-space:nowrap}
