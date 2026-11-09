@@ -61,6 +61,9 @@ The build bundles maintained server modules into
 supabase/functions/reader-import-link.bundle.ts for Dashboard deployment. esbuild,
 linkedom and ipaddr.js are build/server dependencies, not client API services.
 Deno is installed as an official npm runtime package for compatibility checks.
+Import result refresh fetches only result document IDs and PDF/category metadata;
+it deliberately avoids full archive synchronization, which timed out in the
+production Library during the initial reader-opening check.
 The bundle retains dependency license comments.
 
 1. Inspect project tables/storage policies, then apply supabase/link-import.sql.
@@ -72,7 +75,7 @@ The bundle retains dependency license comments.
 
 ## Verification checkpoint
 
-44 unit/database tests passed, including URL/IP/DNS/redirect/robots boundaries,
+45 unit/database tests passed, including URL/IP/DNS/redirect/robots boundaries,
 content detection, inert multilingual extraction, authentic progress, per-owner
 SQL/RPC isolation, immutable duplicate handling, incomplete PDF rejection and
 rate limits. Browser tests cover mixed valid/invalid URLs, categories/tags,
@@ -83,8 +86,10 @@ The function was deployed through the Reader Notes Dashboard; its downloaded
 source matches the reproducible bundle after trailing-newline normalization.
 The deployed runtime returns its own unauthenticated 401 response. Migration and
 live rollback-only owner/anonymous/duplicate verification passed; no fixture
-users remain and reader-pdfs remains private. Full authenticated smoke testing
-is the next deployment check.
+users remain and reader-pdfs remains private. Authenticated live HTML and PDF imports succeeded; a private-address URL failed
+safely while other imports continued. Reader and duplicate smoke checks follow the targeted-refresh correction.
+The hosted runtime required explicit node:buffer imports; a Deno regression test
+now runs with globalThis.Buffer disabled.
 
 Dashboard also reports the existing organization exceeded a prior-cycle quota,
 with restrictions possible from 2026-12-08 if still over quota. Billing and plan

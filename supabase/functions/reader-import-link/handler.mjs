@@ -1,3 +1,4 @@
+import {Buffer} from 'node:buffer';
 import {createHash} from 'node:crypto';
 import {fetchPublic,safeUrl,robotsAllowed,MAX_BYTES} from './security.mjs';
 import {extractDocument} from './extract.mjs';

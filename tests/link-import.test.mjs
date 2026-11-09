@@ -51,3 +51,6 @@ test('PDF handler uploads privately, finalizes only after storage, and reports i
  async function attempt(){const response=await handler(req());return readImportEvents(response,()=>{});}
  await assert.rejects(attempt,/Temporary upload interruption/);assert.equal(finished,0);fail=false;const result=await attempt();assert.equal(result.id,'pdf-id');assert.equal(finished,1);assert.equal(uploads,2);
 });
+test('hosted Deno runtime does not require a global Buffer',async()=>{
+ const {spawnSync}=await import('node:child_process');const {fileURLToPath}=await import('node:url');const result=spawnSync(fileURLToPath(new URL('../node_modules/.bin/deno',import.meta.url)),['run','--allow-env',fileURLToPath(new URL('./link-import-runtime.mjs',import.meta.url))],{encoding:'utf8',timeout:15000});assert.equal(result.status,0,result.stderr||result.error?.message);assert.match(result.stdout,/PASS no global Buffer/);
+});

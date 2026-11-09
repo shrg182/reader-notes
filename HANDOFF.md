@@ -612,3 +612,14 @@ Full signed-in live import smoke testing follows the Pages deployment.
 Dashboard reports existing org prior-cycle quota overrun; possible restrictions
 from 2026-12-08 if unresolved. No billing change was made. See
  docs/plans/link-import-implementation.md for scope, limits and reproduction.
+
+
+Live From Links follow-up: real example.com HTML and W3C dummy PDF imports
+succeeded in the signed-in production app; a private loopback URL was rejected
+without stopping the batch. The hosted Edge runtime lacks global Buffer, so
+handler/transport now import node:buffer explicitly; the correction is deployed.
+A Deno subprocess regression test disables global Buffer. Reader-opening smoke
+also exposed an unrelated full-library/archive statement timeout; import refresh
+now fetches only resulting text IDs and PDF/category metadata, preserving local
+edits through mergeRemote and avoiding archive synchronization. Browser tests
+assert no broad document listing is triggered by importing/opening results.
