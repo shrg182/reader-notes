@@ -35,7 +35,7 @@ jobs:
           mkdir _site
           cp index.html styles.css app.js core.js rich-model.js rich-editor.js cloud.js storage.js config.js toolbar.js toolbar-model.js migration-model.js migration-ui.js migration-library.js migration-complete-ui.js library-taxonomy.js library-groups.js sharing-model.js sharing-ui.js _site/
           cp -R studio vendor _site/
-          cp device-pdfs.js pdf-library-model.js pdf-cloud.js pdf-library.js pdf-viewer.js pdf-speech.js mixed-panes.js media-viewer.js reading-workspace.js browser-files.js link-import.js link-import-model.js library-organizer.js organize-model.js _site/
+          cp device-pdfs.js pdf-library-model.js pdf-cloud.js pdf-library.js pdf-viewer.js pdf-speech.js mixed-panes.js media-viewer.js reading-workspace.js browser-files.js link-import.js link-import-model.js study-edition.js study-model.js library-organizer.js organize-model.js _site/
           cp service-worker.js manifest.webmanifest reader-icon.svg _site/
           touch _site/.nojekyll
       - uses: actions/upload-pages-artifact@v3

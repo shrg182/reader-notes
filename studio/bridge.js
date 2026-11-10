@@ -9,7 +9,7 @@
     clearTimeout(timer);if(initializing)return;
     if(sending){pending=true;setTimeout(()=>flush(requestId),50);return;}
     sending=true;
-    try{const data=state();data.dictionaryMutations=dictionaryMutations;data.sessionPreferences=Object.fromEntries(session);data.globalTerms=GLOBAL_TERMS;data.sourceUrl=window.ReaderSeed.sourceUrl||'';data.media=await exportMedia();data.preferences=Object.fromEntries([...memory].filter(([key])=>!['reader-rich-document','reader-rich-document-log-v1','reader-rich-document-notes-v1'].includes(key)));const clone=editor.cloneNode(true);clone.querySelectorAll('rt,rp,.inline-gloss,.comment-block,.footnote-ref,.inline-media,.annotation-register').forEach(x=>x.remove());post('state',{requestId,state:data,text:clone.innerText??clone.textContent});}
+    try{const data=state();data.dictionaryMutations=dictionaryMutations;data.sessionPreferences=Object.fromEntries(session);data.globalTerms=GLOBAL_TERMS;if(window.ReaderSeed.studySource)data.studySource=window.ReaderSeed.studySource;data.sourceUrl=window.ReaderSeed.sourceUrl||'';data.media=await exportMedia();data.preferences=Object.fromEntries([...memory].filter(([key])=>!['reader-rich-document','reader-rich-document-log-v1','reader-rich-document-notes-v1'].includes(key)));const clone=editor.cloneNode(true);clone.querySelectorAll('rt,rp,.inline-gloss,.comment-block,.footnote-ref,.inline-media,.annotation-register').forEach(x=>x.remove());post('state',{requestId,state:data,text:clone.innerText??clone.textContent});}
     catch(error){post('error',{requestId,message:error.message});}finally{sending=false;if(pending){pending=false;flush();}}
   }
   window.ReaderBridge={markDirty,flush};
@@ -55,6 +55,8 @@
         if(window.ReadingWorkspace)window.ReadingWorkspace.openSync=()=>post('action',{action:'backup'});
         document.getElementById('saveBtn').onclick=()=>{flush();post('action',{action:'sync'});};
         document.querySelector('.brand').textContent=m.seed.title;
+        if(m.seed.studySource?.format==='reader-study-source-v1'&&Array.isArray(m.seed.studySource.notes)){const source=m.seed.studySource,box=document.createElement('section');box.className='study-source-panel';const add=(tag,text,parent=box)=>{const n=document.createElement(tag);n.textContent=text;parent.append(n);return n;};add('h2','来源校读资料');const translation=add('details','');add('summary','参考译文（来源提供）',translation);add('p',source.translation||'来源未提供译文',translation);const review=add('details','');add('summary','来源待核 · '+source.notes.filter(n=>n.issues?.length).length,review);for(const n of source.notes.filter(n=>n.issues?.length))add('p',n.term+'：'+n.annotation+' 【待核】'+(n.issues||[]).join('；'),review);const all=add('details','');add('summary','全部来源注释（含未挂接项）',all);for(const n of source.notes)add('p',n.term+'：'+n.annotation,all);for(const original of source.alternatives||[]){const d=add('details','');add('summary','来源对照原文',d);add('p',original,d);}document.getElementById('sourceUrl').parentElement.after(box);}
+
         for(const a of document.querySelectorAll('a[href]'))a.addEventListener('click',event=>{event.preventDefault();const href=a.getAttribute('href');post('action',{action:href==='#dictionary'?'dictionary':href==='#library'?'library':'source',url:href});});
         // Keep the familiar bottom navigation within this account-backed editor.
         const dock=document.createElement('nav');dock.className='reader-studio-dock';dock.setAttribute('aria-label','阅读导航');

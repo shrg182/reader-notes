@@ -1,5 +1,7 @@
 import {PdfLibrary} from './pdf-library.js';
 import {LinkImporter} from './link-import.js';
+import {StudyEdition} from './study-edition.js';
+import {studyEdition,studyProtected} from './study-model.js';
 import {LibraryOrganizer} from './library-organizer.js';
 import {TAXONOMY} from './library-taxonomy.js';
 import {RichEditor} from './rich-editor.js';
@@ -51,6 +53,7 @@ const pdfLibrary=new PdfLibrary({editArticle:id=>openBook(id),getArticles:()=>bo
 const linkImports=new LinkImporter({cloud,pdfs:pdfLibrary,context:()=>({scope}),notify,run,openText:id=>openBook(id),onChanged:refreshLinkResults});
 async function refreshLinkResults(results=[]){const owner=scope;for(const result of results.filter(r=>r.kind==='text')){const data=await cloud.request('/rest/v1/reader_documents?select=*&id=eq.'+encodeURIComponent(result.id),{token:await cloud.token()});if(owner!==scope)return;const record=Array.isArray(data)?data.find(r=>r.id===result.id):null;if(!record)throw Error('The imported article is unavailable. Refresh the Library.');validateBook(record);const next=mergeRemote(books.find(b=>b.id===record.id),record);await db.putBook(owner,next);if(owner!==scope)return;books=books.filter(b=>b.id!==next.id);books.push(next);}if(owner!==scope)return;await pdfLibrary.refresh();if(owner===scope){render();updateAccount();}}
 const organizer=new LibraryOrganizer({cloud,pdfs:pdfLibrary,context:()=>({scope,busy}),rename:renameLibraryArticle,getBooks:()=>libraryBooks(),metadata:()=>complete.meta,onChanged:()=>{render();updateAccount();},run,notify,getSource:id=>linkImports.sources.find(s=>s.id===id)});
+const study=new StudyEdition({cloud,context:()=>({scope,book:current()}),source:id=>linkImports.sources.find(s=>s.id===id),saveDraft,apply:applyStudyEdition,run});
 linkImports.organizer=organizer;linkImports.installPlacementControls();
 function libraryBooks(){const categoryIndex=new Map(pdfLibrary.categoryOptions().map(c=>[c.id,c.title]));return [...books.map(book=>{const category=pdfLibrary.assignments.find(a=>a.document_id===book.id);return category?{...book,categoryId:category.category_id,categoryTitle:categoryIndex.get(category.category_id)||'My reading materials'}:book;}),...pdfLibrary.books].map(book=>organizer.enabled?organizer.decorate(book):book);}
 function node(tag,text,className){const n=document.createElement(tag);n.textContent=text;if(className)n.className=className;return n;}
@@ -78,7 +81,7 @@ async function acquireLock(nextScope){
   });
 }
 async function loadScope(){
-  ready=false;rich.close();organizer.reset();pdfLibrary.reset();
+  ready=false;rich.close();study.reset();organizer.reset();pdfLibrary.reset();
   const next=cloud.session?`account:${cloud.session.user.id}`:'local';
   await acquireLock(next);
   activityToken++;readingActivity={};originalActivity={};libraryExpansion.clear();scope=next;lastSync=await db.getSetting(`last-sync:${scope}`)||null;pdfBooks=new Set((await db.listAssets(scope)).filter(a=>!['cloud-pdf:','device-pdf:','mixed-file:'].some(prefix=>a.key.slice(scope.length+1).startsWith(prefix))).map(a=>a.key.slice(scope.length+1)));books=await db.listBooks(scope);active=null;unsaved=false;closePdf();
@@ -131,7 +134,7 @@ function render(){
 
 function current(){return books.find(b=>b.id===active);}
 function paintEditor(book){
-  $('title').value=book.title;$('language').value=book.language;
+  study.paint(book);$('title').value=book.title;$('language').value=book.language;
   $('content').value=book.content;$('notes').value=book.notes;
   unsaved=false;status(book.conflict?'Conflict needs review':book.dirty?(cloud.session?'Saved on this device · waiting to sync':'Saved on this device'):'Synced');
 }
@@ -148,12 +151,21 @@ async function openBook(id){
   const meta=complete.meta.find(m=>m.bookId===id),key=articleRows([current()],meta?[meta]:[])[0].id;
   readingActivity[key]={count:(readingActivity[key]?.count||0)+1,lastRead:new Date().toISOString()};await db.setSetting(`reading:${scope}`,readingActivity);
 }
+async function applyStudyEdition(preview,result,mode){
+ await saveDraft();const book=current();if(!book||book.id!==preview.id||book.content!==preview.content||book.richState!==preview.richState)throw Error('Article changed since preview. Close and prepare again.');if(book.conflict)throw Error('Resolve the article conflict first.');if(mode!=='copy'&&studyProtected(book,result.text))throw Error('Existing edits are protected. Create an annotated copy instead.');
+ const prepared=studyEdition(book,result);rich.close();let target;
+ if(mode==='copy'){target={id:crypto.randomUUID(),title:book.title.slice(0,190)+' · 校读稿',language:book.language,notes:book.notes,deleted:false,revision:0,dirty:true,history:[],updatedAt:new Date().toISOString(),...prepared};validateBook(target);await db.putBook(scope,target);books.push(target);}else target=await changeBook(book,prepared);
+ paintEditor(book);unsaved=false;
+ try{if(cloud.session){const response=await cloud.save(target);if(!response.document)throw Error('Saved on this device. Retry Save & sync.');const next=response.conflict?{...target,conflict:response.document}:{...target,...validateBook(response.document),revision:response.document.revision,dirty:false,conflict:null};await db.putBook(scope,next);books=books.map(b=>b.id===next.id?next:b);if(response.conflict){await openBook(target.id);throw Error('Cloud revision changed. Both versions retained; review the conflict.');}}
+ if(mode==='copy'&&organizer.enabled){const original=libraryBooks().find(b=>b.id===book.id),group=groupedBooks([original],complete.meta)[0];await organizer.move(target,[target.id],{category:group.category,categoryTitle:group.categoryTitle,collection:group.collection==='personal'?'':group.collection,collectionTitle:group.collection==='personal'?'':group.collectionTitle,side:'end',anchor:null});}
+ await openBook(target.id);render();notify('校读稿已保存。来源注释与译文已分层；无 AI 费用。');}catch(error){await openBook(target.id);throw error;}
+}
 async function renameLibraryArticle(book,ids,title){
  if(!title||title.length>200)throw Error('Enter a title of up to 200 characters.');
  if(book.kind==='pdf'){await pdfLibrary.flush();const record=pdfLibrary.findRecord(book.id);await pdfLibrary.change(record,'update',{title});if(pdfLibrary.active?.id===book.id)pdfLibrary.paint(pdfLibrary.active);render();return;}
  await saveDraft();if(ids.some(id=>books.find(b=>b.id===id)?.conflict))throw Error('Resolve the article conflict before renaming it.');
  for(const id of ids){let currentBook=books.find(b=>b.id===id);if(!currentBook||currentBook.deleted)throw Error('Article unavailable.');if(currentBook.title!==title)currentBook=await changeBook(currentBook,{title});
-  if(cloud.session&&currentBook.dirty){const result=await cloud.save(currentBook);if(!result.document)throw Error('Title saved on this device; cloud save must be retried.');const next=result.conflict?{...currentBook,conflict:result.document}:{...currentBook,...validateBook(result.document),dirty:false,conflict:null};await db.putBook(scope,next);books=books.map(b=>b.id===id?next:b);if(result.conflict)throw Error('Title changed on another device. Review the conflict; both versions are retained.');}
+  if(cloud.session&&currentBook.dirty){const result=await cloud.save(currentBook);if(!result.document)throw Error('Title saved on this device; cloud save must be retried.');const next=result.conflict?{...currentBook,conflict:result.document}:{...currentBook,...validateBook(result.document),revision:result.document.revision,dirty:false,conflict:null};await db.putBook(scope,next);books=books.map(b=>b.id===id?next:b);if(result.conflict)throw Error('Title changed on another device. Review the conflict; both versions are retained.');}
  }
  if(ids.includes(active)){paintEditor(current());if(rich.loaded)await hydrateRich(current());}render();updateAccount();
 }

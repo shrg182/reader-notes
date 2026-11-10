@@ -697,3 +697,18 @@ No account/data/schema changes; unrelated AI cost proposal is untracked and unto
 Organizer browser checks pass for retained filters on outside dismissal, mutual
 menu closing, Esc, logo restriction reset and unsaved modal input retention.
 The existing article/account/auth/migration regression suite also passes.
+
+### Source-based annotated edition preparation — 2026-11-10
+
+Added reader action 整理为校读稿 with read-only source preview and explicit Save.
+5000言 primary original, reference translation, JSON annotations and alternate
+originals stay separate. Notes get exact, non-overlapping links or remain in
+source review; suspicious readings/fragments are flagged. No AI calls or pinyin
+inference. Existing edits force a separate copy; clean imports may be updated
+in place with ordinary history and stable IDs/workspace keys. Private notes,
+media and preferences survive; structured source metadata survives bridge flush.
+
+See docs/plans/study-edition.md. 52 unit/database checks and dedicated study,
+organizer and link browser suites pass. Also fixed targeted document-save revision
+tracking (preparation and title saves) so a subsequent save uses the new revision.
+Backend deployed first; frontend and live example verification follow.

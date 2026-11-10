@@ -1,0 +1,17 @@
+import {parseHTML} from 'linkedom';
+export function extractStudy(html,url){
+ const host=new URL(url).hostname;if(!/(^|\.)5000yan\.com$/.test(host))throw Error('Annotated preparation currently supports 5000言 article pages only.');
+ const {document}=parseHTML(html),article=document.querySelector('article.reading-content');if(!article)throw Error('This page has no supported structured article.');
+ const text=node=>{const clone=node.cloneNode(true);clone.querySelectorAll('script,style,button,input,iframe,object,embed').forEach(n=>n.remove());for(const br of clone.querySelectorAll('br'))br.replaceWith('\n');return clone.textContent.replace(/\r\n?/g,'\n').trim();};
+ // Only primary paragraphs: the hidden comparison panel contains a second original.
+ const originals=[...article.querySelectorAll('[data-section="原文"]')].filter(n=>!n.closest('#note-compare-panel')&&!n.parentElement.closest('[data-section="原文"]'));
+ const translations=[...article.querySelectorAll('[data-section="翻译"]')].filter(n=>!n.closest('#note-compare-panel')&&!n.parentElement.closest('[data-section="翻译"]'));
+ const paragraphs=originals.map(text).filter(Boolean),translation=translations.map(text).filter(Boolean).join('\n\n');if(!paragraphs.length||paragraphs.join('').length>1000000)throw Error('No supported original text was found.');
+ const original=paragraphs.join('\n\n'),warnings=[],notes=[];let raw={};const script=article.querySelector('#article-notes');if(script){try{raw=JSON.parse(script.textContent);if(!raw||typeof raw!=='object'||Array.isArray(raw))throw Error();}catch{throw Error('The source annotation data is malformed; no changes were made.');}}
+ const entries=Object.entries(raw);if(entries.length>2000)throw Error('Too many source annotations.');
+ const occupied=[];for(const [key,value]of entries){if(!value||typeof value!=='object')continue;const term=typeof value.w==='string'?value.w.trim():'',annotation=typeof value.e==='string'?value.e.trim():'';if(!term||!annotation)continue;if(term.length>200||annotation.length>20000)throw Error('Source annotation exceeds the supported size.');const anchors=originals.flatMap(n=>[...n.querySelectorAll('[data-key]')].filter(a=>a.getAttribute('data-key')===key).map(text));const start=original.indexOf(term);const issues=[];if(start<0)issues.push('词语不在原文中，未强行挂接');if(anchors.length&&anchors.some(a=>a!==term))issues.push('网页标记与注释词语不一致');if(/[年，、：:]$/.test(annotation)||/[.…]$/.test(annotation))issues.push('来源释义可能不完整');if(value.p)issues.push('来源拼音尚未经人工复核');const note={key,term,annotation,pinyin:typeof value.p==='string'?value.p.slice(0,120):'',type:'source_note',start,end:start+term.length,issues};notes.push(note);}
+ // Longer terms win overlapping spans; other source notes remain in the review list.
+ for(const note of [...notes].sort((a,b)=>b.term.length-a.term.length)){if(note.start<0||note.issues.some(i=>i.includes('不一致')))continue;if(occupied.some(n=>note.start<n.end&&note.end>n.start)){note.issues.push('与较长词条重叠，保留来源注释待核');continue;}note.linked=true;occupied.push(note);}
+ const alternatives=[...article.querySelectorAll('#note-compare-panel [data-section="原文"]')].map(text).filter(t=>t&&t!==original);if(alternatives.length)warnings.push('网页另有对照原文，已保留供核对，未混入正文。');if(notes.some(n=>n.issues.length))warnings.push('部分来源注释需人工核对，未推测或补写缺失内容。');
+ return {format:'reader-study-source-v1',title:(document.querySelector('h1')?.textContent||'').trim().slice(0,200),url,paragraphs,original,translation,notes,alternatives,warnings};
+}

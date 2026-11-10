@@ -419,3 +419,5 @@ body.pdf-open{height:100dvh;overflow:hidden;display:flex;flex-direction:column}b
 
 #library-view .article-drag-handle{cursor:grab;flex:none;border:1px solid #dadce0;background:white;min-width:30px;padding:4px;font-size:20px;touch-action:auto}#library-view .article-drag-handle:active{cursor:grabbing}.book.dragging{opacity:.5}.book.drop-before{box-shadow:inset 0 3px #188038}.book.drop-after{box-shadow:inset 0 -3px #188038}.drop-group{outline:3px solid #188038;outline-offset:-3px}#organize-undo{padding:10px 16px;background:#e6f4ea;border:1px solid #81c995;margin-bottom:10px}#organize-undo[hidden]{display:none}
 #library-view .library-collection-group .book>h2{display:flex;gap:10px}#library-view .book .article-title{flex:1;min-width:0;width:auto}
+
+#study-dialog{width:min(960px,95vw);max-height:90dvh;overflow:auto}#study-preview pre{white-space:pre-wrap;font:inherit;line-height:1.8;background:#f8f9fa;padding:12px;max-height:260px;overflow:auto}#study-preview p{line-height:1.6}#prepare-study{white-space:nowrap}
