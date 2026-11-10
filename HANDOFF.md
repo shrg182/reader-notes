@@ -654,4 +654,8 @@ prior placement table. Live rollback fixture checks passed (0 fixtures, RLS true
 anonymous read false); no source document content or storage policies changed.
 49 unit/database tests, organizer browser, article/account, and rich editor tests
 passed. See docs/plans/library-organize.md for ordering semantics and limitations.
-Production UI/example placement verification follows publishing.
+Published in 3e3f594 (Pages deployment succeeded). Live Move / Organize moved the
+requested 驹支不屈于晋 example into the existing 《古文观止》 collection at
+the end. The reader visibly shows 打开原文 and its full original URL
+https://gwgz.5000yan.com/11814.html. Placement persisted after a full production reload. No reimport or body edits
+were performed.
