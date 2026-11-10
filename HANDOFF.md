@@ -718,3 +718,28 @@ in place; UI is Synced with 10 footnotes, 5 anchored 待核 spans and the source
 review/translation panels. Source URL retained; previous mixed edition in history.
 
 Production reload confirmed Synced, 10 footnotes and all source layers intact.
+
+### Demo Reader account and restricted library access — in progress
+
+A separate account was invited for the user-provided email. User approved sharing
+518 current active text editions and 6 ready cloud PDFs read-only; no private
+notes/rich-state/history, Trash, device files or future uploads. Exact account
+identifiers and activation/verification scripts are in ignored private-migrations/.
+No password was set or accessed by the agent; recipient completes invitation.
+
+Added supabase/demo-library.sql, demo-library.js, invitation callback support and
+an initially disabled demoLibraryEnabled flag. Snapshots expose readable text and
+catalog grouping only; specific PDF Storage reads reuse existing private bytes.
+No anonymous access, source writes or PDF duplication. Owner revocation controls
+are under My Account → Manage Demo access. Readable content can be saved; PDF
+embedded annotations remain part of the granted files. This is a read-only catalog,
+not a clone of the owner's rich editing or local companion environment.
+
+54 unit/database tests, dedicated demo text/PDF/isolation/revocation browser checks,
+and existing account/article regression (including invitation callback) passed.
+Existing Storage policies inspected: only owner SELECT/INSERT/DELETE PDF policies.
+Migration/grant is NOT yet installed: stopped a bad clipboard transfer before
+execution. Approved activation waits for user to leave Chrome untouched. Do not
+run the current SQL editor contents without verified replacement. After backend
+activation/checks, enable demoLibraryEnabled and publish; access approval already
+received, so do not request that approval again. See docs/plans/demo-reader.md.

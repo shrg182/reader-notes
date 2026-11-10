@@ -1,5 +1,6 @@
 import {PdfLibrary} from './pdf-library.js';
 import {LinkImporter} from './link-import.js';
+import {DemoLibrary} from './demo-library.js';
 import {StudyEdition} from './study-edition.js';
 import {studyEdition,studyProtected} from './study-model.js';
 import {LibraryOrganizer} from './library-organizer.js';
@@ -54,6 +55,7 @@ const linkImports=new LinkImporter({cloud,pdfs:pdfLibrary,context:()=>({scope}),
 async function refreshLinkResults(results=[]){const owner=scope;for(const result of results.filter(r=>r.kind==='text')){const data=await cloud.request('/rest/v1/reader_documents?select=*&id=eq.'+encodeURIComponent(result.id),{token:await cloud.token()});if(owner!==scope)return;const record=Array.isArray(data)?data.find(r=>r.id===result.id):null;if(!record)throw Error('The imported article is unavailable. Refresh the Library.');validateBook(record);const next=mergeRemote(books.find(b=>b.id===record.id),record);await db.putBook(owner,next);if(owner!==scope)return;books=books.filter(b=>b.id!==next.id);books.push(next);}if(owner!==scope)return;await pdfLibrary.refresh();if(owner===scope){render();updateAccount();}}
 const organizer=new LibraryOrganizer({cloud,pdfs:pdfLibrary,context:()=>({scope,busy}),rename:renameLibraryArticle,getBooks:()=>libraryBooks(),metadata:()=>complete.meta,onChanged:()=>{render();updateAccount();},run,notify,getSource:id=>linkImports.sources.find(s=>s.id===id)});
 const study=new StudyEdition({cloud,context:()=>({scope,book:current()}),source:id=>linkImports.sources.find(s=>s.id===id),saveDraft,apply:applyStudyEdition,run});
+const demo=new DemoLibrary({cloud,context:()=>({scope}),run,notify,beforeOpen:returnToLibrary,onClose:()=>{$('library-view').hidden=false;render();}});
 linkImports.organizer=organizer;linkImports.installPlacementControls();
 function libraryBooks(){const categoryIndex=new Map(pdfLibrary.categoryOptions().map(c=>[c.id,c.title]));return [...books.map(book=>{const category=pdfLibrary.assignments.find(a=>a.document_id===book.id);return category?{...book,categoryId:category.category_id,categoryTitle:categoryIndex.get(category.category_id)||'My reading materials'}:book;}),...pdfLibrary.books].map(book=>organizer.enabled?organizer.decorate(book):book);}
 function node(tag,text,className){const n=document.createElement(tag);n.textContent=text;if(className)n.className=className;return n;}
@@ -81,7 +83,7 @@ async function acquireLock(nextScope){
   });
 }
 async function loadScope(){
-  ready=false;rich.close();study.reset();organizer.reset();pdfLibrary.reset();
+  ready=false;rich.close();demo.reset();study.reset();organizer.reset();pdfLibrary.reset();
   const next=cloud.session?`account:${cloud.session.user.id}`:'local';
   await acquireLock(next);
   activityToken++;readingActivity={};originalActivity={};libraryExpansion.clear();scope=next;lastSync=await db.getSetting(`last-sync:${scope}`)||null;pdfBooks=new Set((await db.listAssets(scope)).filter(a=>!['cloud-pdf:','device-pdf:','mixed-file:'].some(prefix=>a.key.slice(scope.length+1).startsWith(prefix))).map(a=>a.key.slice(scope.length+1)));books=await db.listBooks(scope);active=null;unsaved=false;closePdf();
@@ -90,7 +92,7 @@ async function loadScope(){
   $('review-dialog').close();$('review-body').replaceChildren();$('review-actions').replaceChildren();
   $('workspace-view').hidden=true;$('library-view').hidden=false;
   $('identity').textContent=cloud.session?'Private library':'Local library · this browser';
-  await tools.activate();await complete.activate();await pdfLibrary.activate();await linkImports.activate();await organizer.activate();render();void loadActivity();updateAccount();ready=true;document.querySelector('main').inert=false;document.querySelector('.topbar').inert=false;
+  await tools.activate();await complete.activate();await pdfLibrary.activate();await linkImports.activate();await organizer.activate();await demo.activate().catch(error=>notify(error.message,true));render();void loadActivity();updateAccount();ready=true;document.querySelector('main').inert=false;document.querySelector('.topbar').inert=false;if(demo.rows.length&&!books.some(b=>!b.deleted)&&!pdfLibrary.books.length)await demo.open();
 }
 function render(){
   const query=$('search').value.toLocaleLowerCase(),trash=$('show-trash').checked;
@@ -298,7 +300,7 @@ for(const id of ['title','language','content','notes'])$(id).oninput=()=>{
 };
 $('save').onclick=()=>run(sync);
 $('sync-library').onclick=()=>run(async()=>{if(!cloud.session){notify('Sign in to synchronize. Local articles remain on this device.');return;}await sync();});
-async function returnToLibrary(){if(!tools.confirmLeave())return false;await pdfLibrary.flush();await saveDraft();pdfLibrary.close();rich.close();tools.navigateAway();active=null;closePdf();$('workspace-view').hidden=true;$('library-view').hidden=false;render();return true;}
+async function returnToLibrary(){if(!tools.confirmLeave())return false;await pdfLibrary.flush();await saveDraft();pdfLibrary.close();demo.close();rich.close();tools.navigateAway();active=null;closePdf();$('workspace-view').hidden=true;$('library-view').hidden=false;render();return true;}
 $('back').onclick=()=>run(returnToLibrary);
 // Only lightweight menus dismiss on outside click; editing dialogs keep their input.
 const popupSelector='#library-filters,.library-tools-menu,.header-tool-settings,.edition-menu';
@@ -418,7 +420,7 @@ await run(async()=>{
     const hash=location.hash;history.replaceState(null,'',location.pathname+location.search);
     try{authReturn=await cloud.acceptAuthReturn(hash);}catch(error){linkError=error;}
   }
-  await loadScope();if(authReturn==='recovery')$('recovery-dialog').showModal();
+  await loadScope();if(['recovery','invite'].includes(authReturn))$('recovery-dialog').showModal();
   if(cloud.session&&navigator.onLine)await sync();
   if(linkError)notify(linkError.message,true);
   else if(authReturn==='signup')notify('Email confirmed. You are signed in to your private library.');

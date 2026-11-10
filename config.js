@@ -10,5 +10,6 @@ window.READER_CONFIG = {
   // Enable after supabase/pdf-library.sql is installed and verified.
   pdfLibraryEnabled: true,
   linkImportEnabled: true,
-  organizeEnabled: true
+  organizeEnabled: true,
+  demoLibraryEnabled: false
 };

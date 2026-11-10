@@ -10,6 +10,7 @@
     "test:pdf-browser": "node tests/pdf-library-browser.cjs",
     "vendor:pdf": "node tools/vendor_pdf.mjs",
     "build:link-function": "node tools/build_link_function.mjs",
+    "test:demo-browser": "node tests/demo-library-browser.cjs",
     "test:study-browser": "node tests/study-browser.cjs",
     "test:organize-browser": "node tests/organize-browser.cjs",
     "test:link-browser": "node tests/link-import-browser.cjs",

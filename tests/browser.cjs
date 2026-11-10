@@ -335,6 +335,7 @@ let browser;
   await cp.getByRole('button',{name:'Update password',exact:true}).click();
   await cp.waitForFunction(()=>document.querySelector('#notice').textContent==='Password updated.');
   assert.equal(new URL(cp.url()).hash,'');
+  await cp.goto(origin+`/?callback=invitation#access_token=${accountA}&refresh_token=test&expires_in=3600&type=invite`);await cp.locator('#recovery-dialog').waitFor({state:'visible'});assert.equal(await cp.locator('#new-password').inputValue(),'');assert.equal(new URL(cp.url()).hash,'');await cp.locator('#recovery-dialog').evaluate(d=>d.close());
   console.log('PASS mocked account isolation, revision conflicts, offline reload/retry and remembered sessions');
   console.log('PASS signup/reset redirects, confirmation callbacks, password recovery and expired-link handling');
   await cp.locator('#account-button').click();await cp.locator('#reading-groups').click();await cp.locator('#group-name').fill('Reading friends');await cp.locator('#group-alias').fill('Reader A');

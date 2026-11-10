@@ -54,7 +54,7 @@ export class Cloud {
   async acceptAuthReturn(hash) {
     const p=new URLSearchParams(hash.replace(/^#/,''));
     if(p.get('error')||p.get('error_description'))throw new Error(p.get('error_description')||'This account link is invalid or expired. Request a new link.');
-    if(!['recovery','signup'].includes(p.get('type'))||!p.get('access_token'))return false;
+    if(!['recovery','signup','invite'].includes(p.get('type'))||!p.get('access_token'))return false;
     if(!p.get('refresh_token'))throw new Error('This account link is incomplete. Request a new link.');
     const user=await this.request('/auth/v1/user',{token:p.get('access_token'),auth:true});
     await this.remember({access_token:p.get('access_token'),refresh_token:p.get('refresh_token'),
