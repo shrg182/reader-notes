@@ -659,3 +659,22 @@ requested 驹支不屈于晋 example into the existing 《古文观止》 collec
 the end. The reader visibly shows 打开原文 and its full original URL
 https://gwgz.5000yan.com/11814.html. Placement persisted after a full production reload. No reimport or body edits
 were performed.
+
+### Title editing and drag/drop — 2026-11-10
+
+Move / Organize now includes Title + Save title. Text renames save through the
+existing revision-aware document RPC (source/saved editions retain their IDs);
+PDF renames use reader_change_pdf. Existing Article details title editing remains.
+No new schema, permissions, billing or storage changes are needed.
+
+Library rows have a draggable handle (also opens organizer when clicked). Upper
+and lower halves indicate Before/After; category/collection headers accept drops
+at the end. A successful drop offers Undo, guarded against newer placement
+revisions. Account resets clear drag/Undo state. Existing cycle/stale-reference
+protection remains server enforced: impossible linked positions reject safely.
+Touch and keyboard users retain Move / Organize position controls.
+
+49 unit/database checks and organizer browser tests pass, including title save,
+body/notes/rich annotations preservation, real drag/drop, Undo and reload; the
+existing article/account regression suite also passes. Live example rename and
+position verification follows publication.

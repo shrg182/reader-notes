@@ -50,7 +50,7 @@ const pdfLibrary=new PdfLibrary({editArticle:id=>openBook(id),getArticles:()=>bo
 });
 const linkImports=new LinkImporter({cloud,pdfs:pdfLibrary,context:()=>({scope}),notify,run,openText:id=>openBook(id),onChanged:refreshLinkResults});
 async function refreshLinkResults(results=[]){const owner=scope;for(const result of results.filter(r=>r.kind==='text')){const data=await cloud.request('/rest/v1/reader_documents?select=*&id=eq.'+encodeURIComponent(result.id),{token:await cloud.token()});if(owner!==scope)return;const record=Array.isArray(data)?data.find(r=>r.id===result.id):null;if(!record)throw Error('The imported article is unavailable. Refresh the Library.');validateBook(record);const next=mergeRemote(books.find(b=>b.id===record.id),record);await db.putBook(owner,next);if(owner!==scope)return;books=books.filter(b=>b.id!==next.id);books.push(next);}if(owner!==scope)return;await pdfLibrary.refresh();if(owner===scope){render();updateAccount();}}
-const organizer=new LibraryOrganizer({cloud,pdfs:pdfLibrary,context:()=>({scope}),getBooks:()=>libraryBooks(),metadata:()=>complete.meta,onChanged:()=>{render();updateAccount();},run,notify,getSource:id=>linkImports.sources.find(s=>s.id===id)});
+const organizer=new LibraryOrganizer({cloud,pdfs:pdfLibrary,context:()=>({scope,busy}),rename:renameLibraryArticle,getBooks:()=>libraryBooks(),metadata:()=>complete.meta,onChanged:()=>{render();updateAccount();},run,notify,getSource:id=>linkImports.sources.find(s=>s.id===id)});
 linkImports.organizer=organizer;linkImports.installPlacementControls();
 function libraryBooks(){const categoryIndex=new Map(pdfLibrary.categoryOptions().map(c=>[c.id,c.title]));return [...books.map(book=>{const category=pdfLibrary.assignments.find(a=>a.document_id===book.id);return category?{...book,categoryId:category.category_id,categoryTitle:categoryIndex.get(category.category_id)||'My reading materials'}:book;}),...pdfLibrary.books].map(book=>organizer.enabled?organizer.decorate(book):book);}
 function node(tag,text,className){const n=document.createElement(tag);n.textContent=text;if(className)n.className=className;return n;}
@@ -102,9 +102,9 @@ function render(){
   $('books').replaceChildren();const categoryNodes=new Map();let shown=0;
   for(const group of groups){
     let category=categoryNodes.get(group.category);
-    if(!category){category=node('details','','library-category-group');category.open=libraryExpansion.get('category:'+group.category)??true;category.ontoggle=()=>libraryExpansion.set('category:'+group.category,category.open);const total=groups.filter(g=>g.category===group.category).reduce((n,g)=>n+articleRows(g.books,complete.meta).length,0);const heading=node('summary');heading.append(node('strong',group.categoryTitle),node('small',TAXONOMY.CATEGORIES[group.category]?.[1]||''),node('span',`${total} articles`,'category-count'));category.append(heading);categoryNodes.set(group.category,category);$('books').append(category);}
+    if(!category){category=node('details','','library-category-group');category.open=libraryExpansion.get('category:'+group.category)??true;category.ontoggle=()=>libraryExpansion.set('category:'+group.category,category.open);const total=groups.filter(g=>g.category===group.category).reduce((n,g)=>n+articleRows(g.books,complete.meta).length,0);const heading=node('summary');heading.append(node('strong',group.categoryTitle),node('small',TAXONOMY.CATEGORIES[group.category]?.[1]||''),node('span',`${total} articles`,'category-count'));category.append(heading);if(organizer.enabled&&!trash)organizer.bindGroupDrop(heading,{category:group.category,categoryTitle:group.categoryTitle,collection:'',collectionTitle:''});categoryNodes.set(group.category,category);$('books').append(category);}
     let collection=category;
-    if(group.collection){collection=node('details','','library-collection-group');collection.open=Boolean(query||$('library-collection').value||(libraryExpansion.get('collection:'+group.collection)??groups.length===1));collection.ontoggle=()=>libraryExpansion.set('collection:'+group.collection,collection.open);collection.append(node('summary',group.collectionTitle));category.append(collection);}
+    if(group.collection){collection=node('details','','library-collection-group');collection.open=Boolean(query||$('library-collection').value||(libraryExpansion.get('collection:'+group.collection)??groups.length===1));collection.ontoggle=()=>libraryExpansion.set('collection:'+group.collection,collection.open);const summary=node('summary',group.collectionTitle);collection.append(summary);if(organizer.enabled&&!trash)organizer.bindGroupDrop(summary,group);category.append(collection);}
     const ordered=articleRows(group.books,complete.meta);
     for(const row of ordered){
       const book=row.book;shown++;const card=node('article','','book');
@@ -121,7 +121,7 @@ function render(){
       if(book.kind!=='pdf'&&!trash&&pdfLibrary.available)actions.append(organizer.enabled?button('Move / Organize',()=>organizer.show(book.id)):button('Category',async()=>{await sync();await pdfLibrary.edit(books.find(b=>b.id===book.id),{article:true});}));
       const pdfEdition=row.editions.find(b=>pdfBooks.has(b.id));if(pdfEdition&&!trash)actions.append(button('PDF',()=>openBook(pdfEdition.id)));
       if(book.conflict)actions.append(button('Review conflict',()=>reviewConflict(book.id)));
-      card.append(actions);collection.append(card);
+      card.append(actions);if(organizer.enabled&&!trash)organizer.bindDrag(card,row,group);collection.append(card);
     }
   }
   $('filter-label').textContent='Filters'+(($('library-category').value?1:0)+($('library-collection').value?1:0)+(trash?1:0)?' · '+(($('library-category').value?1:0)+($('library-collection').value?1:0)+(trash?1:0)):'');
@@ -147,6 +147,15 @@ async function openBook(id){
   else $('title').focus();
   const meta=complete.meta.find(m=>m.bookId===id),key=articleRows([current()],meta?[meta]:[])[0].id;
   readingActivity[key]={count:(readingActivity[key]?.count||0)+1,lastRead:new Date().toISOString()};await db.setSetting(`reading:${scope}`,readingActivity);
+}
+async function renameLibraryArticle(book,ids,title){
+ if(!title||title.length>200)throw Error('Enter a title of up to 200 characters.');
+ if(book.kind==='pdf'){await pdfLibrary.flush();const record=pdfLibrary.findRecord(book.id);await pdfLibrary.change(record,'update',{title});if(pdfLibrary.active?.id===book.id)pdfLibrary.paint(pdfLibrary.active);render();return;}
+ await saveDraft();if(ids.some(id=>books.find(b=>b.id===id)?.conflict))throw Error('Resolve the article conflict before renaming it.');
+ for(const id of ids){let currentBook=books.find(b=>b.id===id);if(!currentBook||currentBook.deleted)throw Error('Article unavailable.');if(currentBook.title!==title)currentBook=await changeBook(currentBook,{title});
+  if(cloud.session&&currentBook.dirty){const result=await cloud.save(currentBook);if(!result.document)throw Error('Title saved on this device; cloud save must be retried.');const next=result.conflict?{...currentBook,conflict:result.document}:{...currentBook,...validateBook(result.document),dirty:false,conflict:null};await db.putBook(scope,next);books=books.map(b=>b.id===id?next:b);if(result.conflict)throw Error('Title changed on another device. Review the conflict; both versions are retained.');}
+ }
+ if(ids.includes(active)){paintEditor(current());if(rich.loaded)await hydrateRich(current());}render();updateAccount();
 }
 function historical(book){return {...validateBook(book),savedAt:book.updatedAt||new Date().toISOString()};}
 async function changeBook(book,changes){
