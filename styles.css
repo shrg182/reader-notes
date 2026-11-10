@@ -424,3 +424,5 @@ body.pdf-open{height:100dvh;overflow:hidden;display:flex;flex-direction:column}b
 
 #demo-library-view details{margin:12px 0;border:1px solid #dadce0;border-radius:6px;padding:12px;background:white}#demo-library-view summary{cursor:pointer;font-weight:600}.demo-book{display:flex;align-items:center;justify-content:space-between;gap:12px;border-top:1px solid #eee;padding:10px}.demo-book button{border:0;background:transparent;text-align:left;color:#137333}.demo-book small{color:#5f6368;white-space:nowrap}#demo-reader-dialog{width:min(1200px,96vw);max-height:94dvh;overflow:auto}#demo-reader-text{white-space:pre-wrap;line-height:1.9;font:inherit;font-size:18px;padding:16px}#demo-pdf-reader .pdf-page-scroll{height:65dvh;position:relative}#demo-pdf-reader[hidden]{display:none}
 #demo-pdf-reader .pdf-reader-body{position:relative;height:65dvh}#demo-pdf-reader .pdf-page-scroll{position:absolute;inset:0;height:auto}
+
+#account-button{display:inline-flex;align-items:center;gap:7px}.demo-badge{display:inline-block;background:#e8f0fe;color:#174ea6;border:1px solid #c2d7fa;border-radius:10px;padding:1px 6px;font-size:10px;font-weight:600;line-height:1.5;white-space:nowrap}

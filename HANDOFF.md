@@ -753,3 +753,13 @@ config matches. The owner’s My Account → Manage Demo access visibly confirms
 518 text editions · 6 PDFs and the Revoke access control. Grant was left intact. See docs/plans/demo-reader.md. Recipient must
 accept invitation and set their own password, preferably in a separate browser
 profile/private window. Actual login awaits that user action.
+
+### Demo account badge — 2026-11-10
+
+My Account now includes a visible Demo badge for the signed-in scope when its
+Demo Library catalog contains granted books. The badge travels with the account
+button into reader headers, stays visible in My Library, and clears on scope
+reset or revoked access. It is display-only, not an authorization signal; no
+email hardcoding, user-metadata role checks or backend permission changes.
+The existing demo browser check passes for badge appearance/persistence/clearing
+alongside read-only text/PDF navigation and zero owner writes.

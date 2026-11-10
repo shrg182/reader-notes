@@ -254,7 +254,7 @@ function updateAccount(){
   $('account-description').textContent=cloud.session?`Signed in as ${cloud.session.user.email}. Your library is private to this account.`:
     cloud.configured?'Sign in to use a private library across devices. Local articles stay separate.':'Cloud accounts are not configured in this preview. You can use the local library and export backups.';
   $('credentials').hidden=Boolean(cloud.session)||!cloud.configured;
-  $('account-button').textContent='My Account';
+  $('account-button').textContent='My Account';demo.paintBadge();
   const pending=books.filter(b=>b.dirty||b.conflict).length+Object.keys(pdfLibrary.drafts).length+(pdfLibrary.uploading?1:0);
   $('sync-indicator').textContent=!navigator.onLine?'Offline':cloud.session?(pending?'Pending':lastSync?'✓ Synced':'Not synced'):'Local';
   $('account-sync-status').textContent=cloud.session?`${lastSync?'Last successful library sync: '+new Date(lastSync).toLocaleString():'No successful library sync recorded on this device.'}${pending?' '+pending+' editions have pending changes or conflicts.':''} Synchronization runs when signing in, saving, or reconnecting.`:'Local library stays on this browser. Sign in to synchronize a separate private account library.';
