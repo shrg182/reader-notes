@@ -45,3 +45,12 @@ paragraph, 14 source notes, 10 linked, one alternate original).
 
 Deployment order: update reader-import-link bundle before publishing the client.
 Project zkffujfbzbxoexohcmwk only; no schema/policy changes required.
+
+Live deployment: Reader Notes project function ZIP matches the tested bundle
+exactly after newline normalization. Build output is ASCII-safe to avoid native
+text-file charset ambiguity during Dashboard copy/paste. Frontend Pages deployment
+45f7020 succeeded. Actual 唐人告命 clean import passed the guard and was applied
+in place: 10 source footnotes, 9 source review issues (5 anchored 待核 spans),
+separate source translation, source URL retained, Synced.
+
+Production reload confirmed Synced, 10 footnotes and all source layers intact.

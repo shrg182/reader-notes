@@ -711,4 +711,10 @@ media and preferences survive; structured source metadata survives bridge flush.
 See docs/plans/study-edition.md. 52 unit/database checks and dedicated study,
 organizer and link browser suites pass. Also fixed targeted document-save revision
 tracking (preparation and title saves) so a subsequent save uses the new revision.
-Backend deployed first; frontend and live example verification follow.
+Backend deployed first and downloaded ZIP matches the ASCII-safe tested bundle.
+Frontend 45f7020 Pages deployment succeeded. Live 唐人告命 preparation returned
+10 linked notes and 9 review issues. The unchanged import was explicitly applied
+in place; UI is Synced with 10 footnotes, 5 anchored 待核 spans and the source
+review/translation panels. Source URL retained; previous mixed edition in history.
+
+Production reload confirmed Synced, 10 footnotes and all source layers intact.
