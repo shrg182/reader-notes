@@ -747,7 +747,9 @@ execution; activation used verified direct SQL insertion after Chrome was free.
 
 54 unit/database tests, demo text/PDF/isolation/revocation browser checks and the
 existing account/article/invitation regression suite passed. Invitation support
-published in f0b38e9 with access gated; enabling demoLibraryEnabled follows the
-successful live backend checks. See docs/plans/demo-reader.md. Recipient must
+published in f0b38e9 with access gated; demoLibraryEnabled is enabled and published in
+fb02fff after successful live backend checks. Pages deployment succeeded; live
+config matches. The owner’s My Account → Manage Demo access visibly confirms
+518 text editions · 6 PDFs and the Revoke access control. Grant was left intact. See docs/plans/demo-reader.md. Recipient must
 accept invitation and set their own password, preferably in a separate browser
 profile/private window. Actual login awaits that user action.

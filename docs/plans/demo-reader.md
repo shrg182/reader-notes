@@ -80,3 +80,8 @@ recipient-role queries returned those exact counts, zero private document/PDF
 metadata rows, six readable PDF objects, no direct snapshot-table SELECT and no
 anonymous catalog execution. Invitation exists pending recipient verification;
 actual credential setup and login are performed by the recipient.
+
+Enabled frontend fb02fff deployed successfully; live config matches. Owner-side
+Manage Demo access was verified in the actual signed-in app and shows 518 text
+editions / 6 PDFs with Revoke access. No real recipient login was attempted; the
+recipient must verify their invitation and set their own password.
