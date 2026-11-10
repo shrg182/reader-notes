@@ -6,7 +6,7 @@ editorInit();function editorInit(){document.getElementById('editor').innerHTML=w
 const editor=document.getElementById('editor'), footnoteList=document.getElementById('footnoteList'), saveStatus=document.getElementById('saveStatus');const INLINE_GLOSS_LIMIT=36,INTERLINEAR_NOTE_LIMIT=60;
 const initialHTML=editor.innerHTML,GLOBAL_TERM_DEFAULTS=GLOBAL_TERMS.map(entry=>({...entry})); let savedRange=null, saveTimer=null, voices=[];
 document.getElementById('sourceLink').href=SOURCE_URL;
-document.getElementById('sourceCardLink').href=SOURCE_URL;document.getElementById('sourceUrl').textContent=SOURCE_URL;
+document.getElementById('sourceCardLink').href=SOURCE_URL;document.getElementById('sourceUrl').textContent=SOURCE_URL;document.getElementById('sourceCardLink').hidden=!SOURCE_URL;document.getElementById('sourceLink').hidden=!SOURCE_URL;
 function rememberSelection(){const selection=getSelection();if(selection&&selection.rangeCount&&editor.contains(selection.anchorNode)){savedRange=selection.getRangeAt(0).cloneRange();document.getElementById('selectionText').textContent=selection.toString()||'光标位置（未选择文字）';}}
 let contentSearchQuery='',contentSearchIndex=-1;
 function contentSearchMatches(query){const matches=[],needle=query.toLocaleLowerCase(),walker=document.createTreeWalker(editor,NodeFilter.SHOW_TEXT);let node;while(node=walker.nextNode()){if(node.parentElement?.closest('rt,.inline-gloss'))continue;const value=node.nodeValue.toLocaleLowerCase();let offset=0;while((offset=value.indexOf(needle,offset))!==-1){matches.push({node,offset});offset+=Math.max(needle.length,1)}}return matches}

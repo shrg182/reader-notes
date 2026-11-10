@@ -1,5 +1,6 @@
 import {PdfLibrary} from './pdf-library.js';
 import {LinkImporter} from './link-import.js';
+import {LibraryOrganizer} from './library-organizer.js';
 import {TAXONOMY} from './library-taxonomy.js';
 import {RichEditor} from './rich-editor.js';
 import {catalogTitle,articleRows,classifyImport,groupedBooks} from './library-groups.js';
@@ -49,7 +50,9 @@ const pdfLibrary=new PdfLibrary({editArticle:id=>openBook(id),getArticles:()=>bo
 });
 const linkImports=new LinkImporter({cloud,pdfs:pdfLibrary,context:()=>({scope}),notify,run,openText:id=>openBook(id),onChanged:refreshLinkResults});
 async function refreshLinkResults(results=[]){const owner=scope;for(const result of results.filter(r=>r.kind==='text')){const data=await cloud.request('/rest/v1/reader_documents?select=*&id=eq.'+encodeURIComponent(result.id),{token:await cloud.token()});if(owner!==scope)return;const record=Array.isArray(data)?data.find(r=>r.id===result.id):null;if(!record)throw Error('The imported article is unavailable. Refresh the Library.');validateBook(record);const next=mergeRemote(books.find(b=>b.id===record.id),record);await db.putBook(owner,next);if(owner!==scope)return;books=books.filter(b=>b.id!==next.id);books.push(next);}if(owner!==scope)return;await pdfLibrary.refresh();if(owner===scope){render();updateAccount();}}
-function libraryBooks(){const categoryIndex=new Map(pdfLibrary.categoryOptions().map(c=>[c.id,c.title]));return [...books.map(book=>{const category=pdfLibrary.assignments.find(a=>a.document_id===book.id);return category?{...book,categoryId:category.category_id,categoryTitle:categoryIndex.get(category.category_id)||'My reading materials'}:book;}),...pdfLibrary.books];}
+const organizer=new LibraryOrganizer({cloud,pdfs:pdfLibrary,context:()=>({scope}),getBooks:()=>libraryBooks(),metadata:()=>complete.meta,onChanged:()=>{render();updateAccount();},run,notify,getSource:id=>linkImports.sources.find(s=>s.id===id)});
+linkImports.organizer=organizer;linkImports.installPlacementControls();
+function libraryBooks(){const categoryIndex=new Map(pdfLibrary.categoryOptions().map(c=>[c.id,c.title]));return [...books.map(book=>{const category=pdfLibrary.assignments.find(a=>a.document_id===book.id);return category?{...book,categoryId:category.category_id,categoryTitle:categoryIndex.get(category.category_id)||'My reading materials'}:book;}),...pdfLibrary.books].map(book=>organizer.enabled?organizer.decorate(book):book);}
 function node(tag,text,className){const n=document.createElement(tag);n.textContent=text;if(className)n.className=className;return n;}
 function button(text,fn){const b=node('button',text);b.onclick=()=>run(fn);return b;}
 function download(name,data,type='application/json'){
@@ -75,7 +78,7 @@ async function acquireLock(nextScope){
   });
 }
 async function loadScope(){
-  ready=false;rich.close();pdfLibrary.reset();
+  ready=false;rich.close();organizer.reset();pdfLibrary.reset();
   const next=cloud.session?`account:${cloud.session.user.id}`:'local';
   await acquireLock(next);
   activityToken++;readingActivity={};originalActivity={};libraryExpansion.clear();scope=next;lastSync=await db.getSetting(`last-sync:${scope}`)||null;pdfBooks=new Set((await db.listAssets(scope)).filter(a=>!['cloud-pdf:','device-pdf:','mixed-file:'].some(prefix=>a.key.slice(scope.length+1).startsWith(prefix))).map(a=>a.key.slice(scope.length+1)));books=await db.listBooks(scope);active=null;unsaved=false;closePdf();
@@ -84,12 +87,12 @@ async function loadScope(){
   $('review-dialog').close();$('review-body').replaceChildren();$('review-actions').replaceChildren();
   $('workspace-view').hidden=true;$('library-view').hidden=false;
   $('identity').textContent=cloud.session?'Private library':'Local library · this browser';
-  await tools.activate();await complete.activate();await pdfLibrary.activate();await linkImports.activate();render();void loadActivity();updateAccount();ready=true;document.querySelector('main').inert=false;document.querySelector('.topbar').inert=false;
+  await tools.activate();await complete.activate();await pdfLibrary.activate();await linkImports.activate();await organizer.activate();render();void loadActivity();updateAccount();ready=true;document.querySelector('main').inert=false;document.querySelector('.topbar').inert=false;
 }
 function render(){
   const query=$('search').value.toLocaleLowerCase(),trash=$('show-trash').checked;
   const candidates=libraryBooks().filter(b=>b.deleted===trash);
-  const visible=articleRows(candidates,complete.meta).filter(row=>row.editions.some(b=>`${b.title} ${b.content} ${b.notes} ${classifyImport(complete.meta.find(m=>m.bookId===b.id)).collectionTitle}`.toLocaleLowerCase().includes(query))).flatMap(row=>row.editions);
+  const visible=articleRows(candidates,complete.meta).filter(row=>row.editions.some(b=>`${b.title} ${b.content} ${b.notes} ${b.collectionTitle||classifyImport(complete.meta.find(m=>m.bookId===b.id)).collectionTitle}`.toLocaleLowerCase().includes(query))).flatMap(row=>row.editions);
   const allGroups=groupedBooks(candidates,complete.meta),selectedCategory=$('library-category').value,selectedCollection=$('library-collection').value;
   function options(select,items,all){const previous=select.value;select.replaceChildren(new Option(all,''));for(const [id,title,count] of items)select.add(new Option(`${title} (${count})`,id));select.value=items.some(x=>x[0]===previous)?previous:'';}
   const categoryMap=new Map();for(const g of allGroups){const old=categoryMap.get(g.category);categoryMap.set(g.category,[g.category,g.categoryTitle,(old?.[2]||0)+articleRows(g.books,complete.meta).length]);}
@@ -111,11 +114,11 @@ function render(){
       const lastEdit=book.history?.length?book.updatedAt:editing?.lastEdited;
       const save=node('p',book.kind==='pdf'?(book.deviceOnly?'On this device only':book.status==='uploading'?'Upload paused or incomplete':book.status==='deleting'?'Deletion incomplete · retry in Trash':'Private cloud PDF'):(lastEdit?'Edited '+new Date(lastEdit).toLocaleDateString():'Editing history not recorded')+' · '+(book.conflict?'Conflict needs review':book.dirty?(cloud.session?'Waiting to sync':'Saved on device'):'Synced'));
       card.append(title,reading,save);const actions=node('div','','actions');
-      if(book.kind==='pdf'){const record=pdfLibrary.findRecord(book.id);if(trash){if(record.status==='ready')actions.append(button('Restore PDF',()=>pdfLibrary.restore(record)));actions.append(button(record.status==='deleting'?'Retry permanent deletion':'Delete permanently',()=>pdfLibrary.confirmDelete(record)));}else{if(record.status==='uploading')actions.append(button('Resume upload',()=>pdfLibrary.openImport(record)));else actions.append(button('Details & category',()=>pdfLibrary.edit(record)));actions.append(button('Move to trash',()=>pdfLibrary.trash(record)));}}
+      if(book.kind==='pdf'){const record=pdfLibrary.findRecord(book.id);if(trash){if(record.status==='ready')actions.append(button('Restore PDF',()=>pdfLibrary.restore(record)));actions.append(button(record.status==='deleting'?'Retry permanent deletion':'Delete permanently',()=>pdfLibrary.confirmDelete(record)));}else{if(record.status==='uploading')actions.append(button('Resume upload',()=>pdfLibrary.openImport(record)));else actions.append(button('Details & category',()=>pdfLibrary.edit(record)));if(organizer.enabled)actions.append(button('Move / Organize',()=>organizer.show(book.id)));actions.append(button('Move to trash',()=>pdfLibrary.trash(record)));}}
       else if(trash)actions.append(button('Restore article',async()=>{await changeBook(book,{deleted:false});await sync();}));
       else actions.append(button('Sharing',async()=>{await openBook(book.id);await sharing.openOwn();}));
 
-      if(book.kind!=='pdf'&&!trash&&pdfLibrary.available)actions.append(button('Category',async()=>{await sync();await pdfLibrary.edit(books.find(b=>b.id===book.id),{article:true});}));
+      if(book.kind!=='pdf'&&!trash&&pdfLibrary.available)actions.append(organizer.enabled?button('Move / Organize',()=>organizer.show(book.id)):button('Category',async()=>{await sync();await pdfLibrary.edit(books.find(b=>b.id===book.id),{article:true});}));
       const pdfEdition=row.editions.find(b=>pdfBooks.has(b.id));if(pdfEdition&&!trash)actions.append(button('PDF',()=>openBook(pdfEdition.id)));
       if(book.conflict)actions.append(button('Review conflict',()=>reviewConflict(book.id)));
       card.append(actions);collection.append(card);
@@ -132,7 +135,7 @@ function paintEditor(book){
   $('content').value=book.content;$('notes').value=book.notes;
   unsaved=false;status(book.conflict?'Conflict needs review':book.dirty?(cloud.session?'Saved on this device · waiting to sync':'Saved on this device'):'Synced');
 }
-async function hydrateRich(book){const meta=complete.meta.find(x=>x.bookId===book.id);const record=meta&&!book.richState?await complete.record(meta):null;const correctionMeta=complete.meta.find(x=>x.kind==='corrections');let dictionaryOverrides;try{dictionaryOverrides=correctionMeta?(await complete.record(correctionMeta)).payload.overrides:undefined;}catch{}await rich.open(book,{...record?.payload,...(dictionaryOverrides?{dictionaryOverrides}:{})});const view=tools.profile.views?.[`${book.id}:${tools.target}`];if(view)rich.tool('view',view);}
+async function hydrateRich(book){const meta=complete.meta.find(x=>x.bookId===book.id);const record=meta&&!book.richState?await complete.record(meta):null;const sourceUrl=linkImports.sources.find(s=>s.id===book.id)?.original_url;const correctionMeta=complete.meta.find(x=>x.kind==='corrections');let dictionaryOverrides;try{dictionaryOverrides=correctionMeta?(await complete.record(correctionMeta)).payload.overrides:undefined;}catch{}await rich.open(book,{...record?.payload,sourceUrl,...(dictionaryOverrides?{dictionaryOverrides}:{})});const view=tools.profile.views?.[`${book.id}:${tools.target}`];if(view)rich.tool('view',view);}
 async function openBook(id){
   if(!tools.confirmLeave())return;
   await pdfLibrary.flush();pdfLibrary.close();
@@ -179,7 +182,7 @@ async function sync(){
       {...original,...validateBook(result.document),dirty:false,conflict:null,revision:result.document.revision};
     await db.putBook(scope,next);books=books.map(b=>b.id===next.id?next:b);
   }
-  if(pdfLibrary.available){await pdfLibrary.refresh();await pdfLibrary.flush();}
+  if(pdfLibrary.available){await pdfLibrary.refresh();await pdfLibrary.flush();await organizer.refresh();}
   const remote=await cloud.list();
   if(!Array.isArray(remote))throw new Error('Cloud returned an invalid library.');
   const merged=new Map(books.map(b=>[b.id,b]));

@@ -634,3 +634,24 @@ verification/from-links. No original user content was altered or removed.
 45 automated unit/database tests pass, plus link browser, article/account,
 cloud/offline/125 MiB PDF and WebKit saved-workspace regression suites. The live
 schema, function and frontend are enabled; project privacy and billing are unchanged.
+
+### Collection placement and 原文来源 — 2026-11-10
+
+Added owner-only per-article placement metadata and Move / Organize controls
+(category, existing/new collection, before/after/end). Source and saved editions
+move together; all text, notes, rich state, reading positions and workspace IDs
+stay intact. Link imports have the same placement options and explicit collection
+suggestions; placement failures are recoverable without reimporting the file.
+Duplicate imports do not reorganize existing articles automatically.
+
+Rich editor seed now falls back to the existing link import's original URL for
+blank source fields, including already-saved rich editions. 原文来源 shows the full
+URL plus 打开原文. Existing valid source URLs take precedence; unsafe schemes or
+credentials are ignored. Header attribution remains available.
+
+Installed supabase/library-organize.sql in zkffujfbzbxoexohcmwk after verifying no
+prior placement table. Live rollback fixture checks passed (0 fixtures, RLS true,
+anonymous read false); no source document content or storage policies changed.
+49 unit/database tests, organizer browser, article/account, and rich editor tests
+passed. See docs/plans/library-organize.md for ordering semantics and limitations.
+Production UI/example placement verification follows publishing.

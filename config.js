@@ -9,5 +9,6 @@ window.READER_CONFIG = {
   richEditorEnabled: true,
   // Enable after supabase/pdf-library.sql is installed and verified.
   pdfLibraryEnabled: true,
-  linkImportEnabled: true
+  linkImportEnabled: true,
+  organizeEnabled: true
 };

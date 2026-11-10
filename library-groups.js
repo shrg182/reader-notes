@@ -1,4 +1,5 @@
 import {TAXONOMY,SOURCE_PATHS} from './library-taxonomy.js';
+import {arrangeRows} from './organize-model.js';
 export const categories=Object.entries(TAXONOMY.CATEGORIES).map(([id,[title]])=>({id,title}));
 export function classifyImport(meta){
  let collection=(meta?.sourcePath||'').replace(/^\.\//,'').split('/')[0];
@@ -18,9 +19,10 @@ export function classifyImport(meta){
 }
 export function groupedBooks(books,metadata){
  const index=new Map(metadata.filter(x=>x.bookId).map(x=>[x.bookId,x]));const groups=new Map();
- for(const book of books){const meta=index.get(book.id),group=book.categoryId?{category:book.categoryId,categoryTitle:book.categoryTitle,collection:'',collectionTitle:'',path:''}:meta?classifyImport(meta):{category:'personal',collection:'personal',categoryTitle:'My reading materials',collectionTitle:'My reading materials',path:''};const key=group.category+':'+group.collection;if(!groups.has(key))groups.set(key,{...group,books:[]});groups.get(key).books.push(book);}
+ for(const book of books){const meta=index.get(book.id),group=book.categoryId?{category:book.categoryId,categoryTitle:book.categoryTitle,collection:book.collectionId||'',collectionTitle:book.collectionTitle||'',path:meta?classifyImport(meta).path:''}:meta?classifyImport(meta):{category:'personal',collection:'personal',categoryTitle:'My reading materials',collectionTitle:'My reading materials',path:''};const key=group.category+':'+group.collection;if(!groups.has(key))groups.set(key,{...group,books:[]});groups.get(key).books.push(book);}
  const order=[...Object.keys(TAXONOMY.CATEGORIES),'other','personal'];
- return [...groups.values()].sort((a,b)=>order.indexOf(a.category)-order.indexOf(b.category)||(TAXONOMY.CATEGORY_COLLECTIONS[a.category]||[]).indexOf(a.collection)-(TAXONOMY.CATEGORY_COLLECTIONS[b.category]||[]).indexOf(b.collection));
+ const collectionOrder=g=>!g.collection?-1:((TAXONOMY.CATEGORY_COLLECTIONS[g.category]||[]).indexOf(g.collection)<0?100000:(TAXONOMY.CATEGORY_COLLECTIONS[g.category]||[]).indexOf(g.collection));
+ return [...groups.values()].sort((a,b)=>order.indexOf(a.category)-order.indexOf(b.category)||collectionOrder(a)-collectionOrder(b)||a.collectionTitle.localeCompare(b.collectionTitle));
 }
 
 // Titles are editable and are never used to identify an article.
@@ -37,7 +39,7 @@ export function articleRows(books,metadata){
   row.editions.sort((a,b)=>(index.get(a.id)?.edition==='Source edition'?1:0)-(index.get(b.id)?.edition==='Source edition'?1:0)||String(b.updatedAt||'').localeCompare(String(a.updatedAt||'')));
   row.book=row.editions[0];const source=row.editions.find(b=>index.get(b.id)?.edition==='Source edition');row.title=source?.title||row.book.title.replace(/ · saved edition$/,'');
  }
- return [...rows.values()].sort((a,b)=>(a.path||a.id).localeCompare(b.path||b.id,undefined,{numeric:true}));
+ return arrangeRows([...rows.values()].sort((a,b)=>(a.path||a.id).localeCompare(b.path||b.id,undefined,{numeric:true})));
 }
 
 // Shorten only an exact repeated collection prefix; never change stored titles.

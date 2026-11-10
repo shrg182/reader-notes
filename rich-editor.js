@@ -1,4 +1,4 @@
-import {encodeRichState,validateRichState,jsonConstant,mergeDictionaryOverrides} from './rich-model.js';
+import {encodeRichState,validateRichState,jsonConstant,mergeDictionaryOverrides,safeSourceUrl} from './rich-model.js';
 import {plainText as legacyPlainText} from './migration-model.js';
 const $=id=>document.getElementById(id);
 const escapeText=t=>String(t).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
@@ -51,7 +51,7 @@ export class RichEditor{
   let previous={};try{previous=JSON.parse(state.preferences?.['reading-lexicon-entry-overrides-v1']||'{}');}catch{}
   state.preferences={...state.preferences,'reading-lexicon-entry-overrides-v1':JSON.stringify(mergeDictionaryOverrides(this.context?.().books||[],payload?.dictionaryOverrides||previous))};
   const sourceLanguage=payload?.original?inertDocument(payload.original).documentElement.lang:'';
-  const sanitized={...state,bodyHTML:cleanRichHtml(state.bodyHTML),title:book.title,language:book.language||state.language||sourceLanguage||'zh-CN',globalTerms:state.globalTerms||jsonConstant(payload?.original,'GLOBAL_TERMS')||state.terms||[],sourceUrl:state.sourceUrl||(payload?.original?.match(/\bSOURCE_URL\s*=\s*['"](https?:\/\/[^'"]+)['"]/)||[])[1]||''};
+  const sanitized={...state,bodyHTML:cleanRichHtml(state.bodyHTML),title:book.title,language:book.language||state.language||sourceLanguage||'zh-CN',globalTerms:state.globalTerms||jsonConstant(payload?.original,'GLOBAL_TERMS')||state.terms||[],sourceUrl:safeSourceUrl(state.sourceUrl)||safeSourceUrl(payload?.sourceUrl)||safeSourceUrl((payload?.original?.match(/\bSOURCE_URL\s*=\s*['"](https?:\/\/[^'"]+)['"]/)||[])[1]||'')};
   // Never interpret archived scripts, storage settings or remote URLs as code.
   encodeRichState(sanitized);return sanitized;
  }

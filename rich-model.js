@@ -23,3 +23,5 @@ export function mergeDictionaryOverrides(books,base={}){
  for(const [key,change] of changes){if(change.deleted)delete result[key];else if(change.value&&typeof change.value==='object')result[key]=change.value;}
  return result;
 }
+
+export function safeSourceUrl(value){try{const url=new URL(value);return ['https:','http:'].includes(url.protocol)&&!url.username&&!url.password?url.href:'';}catch{return '';}}
