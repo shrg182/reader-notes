@@ -676,5 +676,8 @@ Touch and keyboard users retain Move / Organize position controls.
 
 49 unit/database checks and organizer browser tests pass, including title save,
 body/notes/rich annotations preservation, real drag/drop, Undo and reload; the
-existing article/account regression suite also passes. Live example rename and
-position verification follows publication.
+existing article/account regression suite also passes. Published b4afc09; Pages
+job succeeded and live organizer asset matches. In the live account, renamed the
+requested article to 驹支不屈于晋 and placed it immediately after 吕相绝秦.
+Full collection view and production reload confirm the adjacent order and title;
+no body/notes edits were made.
