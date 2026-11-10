@@ -71,3 +71,12 @@ Browser checks cover invited-account landing, grouped/searchable read-only text,
 inert HTML-like text, actual PDF navigation, refresh/revocation and zero owner
 writes. Existing account/article tests also cover invitation password setup,
 confirmation/recovery, conflicts and isolation.
+
+## Live activation checkpoint
+
+The owner approved 518 active text editions and 6 ready cloud PDFs. Migration and
+the guarded owner grant installed atomically in the Reader Notes project. Live
+recipient-role queries returned those exact counts, zero private document/PDF
+metadata rows, six readable PDF objects, no direct snapshot-table SELECT and no
+anonymous catalog execution. Invitation exists pending recipient verification;
+actual credential setup and login are performed by the recipient.

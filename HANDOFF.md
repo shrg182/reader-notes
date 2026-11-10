@@ -719,27 +719,35 @@ review/translation panels. Source URL retained; previous mixed edition in histor
 
 Production reload confirmed Synced, 10 footnotes and all source layers intact.
 
-### Demo Reader account and restricted library access — in progress
+### Demo Reader account and restricted library access — 2026-11-10
 
-A separate account was invited for the user-provided email. User approved sharing
-518 current active text editions and 6 ready cloud PDFs read-only; no private
-notes/rich-state/history, Trash, device files or future uploads. Exact account
-identifiers and activation/verification scripts are in ignored private-migrations/.
-No password was set or accessed by the agent; recipient completes invitation.
+A separate account was invited for the user-provided email; account exists and
+awaits recipient verification/password setup. No password was chosen/read/stored
+by the agent. Exact account identifiers and scripts are in ignored
+private-migrations/. User explicitly approved read-only sharing of 518 current
+active text editions and 6 ready cloud PDFs, excluding app-private notes, rich
+annotations/history, Trash, device files and future uploads. Embedded PDF marks
+remain included; readable files/text can be saved by the recipient.
 
-Added supabase/demo-library.sql, demo-library.js, invitation callback support and
-an initially disabled demoLibraryEnabled flag. Snapshots expose readable text and
-catalog grouping only; specific PDF Storage reads reuse existing private bytes.
-No anonymous access, source writes or PDF duplication. Owner revocation controls
-are under My Account → Manage Demo access. Readable content can be saved; PDF
-embedded annotations remain part of the granted files. This is a read-only catalog,
-not a clone of the owner's rich editing or local companion environment.
+Installed supabase/demo-library.sql and the exact-scope owner grant atomically in
+zkffujfbzbxoexohcmwk. Existing Storage policies inspected: only owner PDF SELECT,
+INSERT and DELETE. New SELECT rule requires an exact viewer/file grant and a live,
+ready non-trashed PDF; no public bucket or duplicated PDF bytes. Live recipient
+role checks returned: 518 text, 6 PDF, 0 private documents, 0 private PDF metadata,
+6 readable PDF objects, raw snapshot-table SELECT false, anon catalog EXECUTE false.
 
-54 unit/database tests, dedicated demo text/PDF/isolation/revocation browser checks,
-and existing account/article regression (including invitation callback) passed.
-Existing Storage policies inspected: only owner SELECT/INSERT/DELETE PDF policies.
-Migration/grant is NOT yet installed: stopped a bad clipboard transfer before
-execution. Approved activation waits for user to leave Chrome untouched. Do not
-run the current SQL editor contents without verified replacement. After backend
-activation/checks, enable demoLibraryEnabled and publish; access approval already
-received, so do not request that approval again. See docs/plans/demo-reader.md.
+Added demo-library.js, invitation callback password-setup support and config flag.
+Demo Library is a grouped/searchable read-only text/PDF catalog, not a clone of
+private rich annotations or local companion workspaces. A new empty invited
+account lands there automatically. My Library remains separate. Owners can revoke
+under My Account → Manage Demo access. Sign-out clears rendered content/resources.
+Future uploads/later text edits are not automatically shared; downloaded copies
+cannot be recalled. The earlier failed clipboard transfer was caught before any
+execution; activation used verified direct SQL insertion after Chrome was free.
+
+54 unit/database tests, demo text/PDF/isolation/revocation browser checks and the
+existing account/article/invitation regression suite passed. Invitation support
+published in f0b38e9 with access gated; enabling demoLibraryEnabled follows the
+successful live backend checks. See docs/plans/demo-reader.md. Recipient must
+accept invitation and set their own password, preferably in a separate browser
+profile/private window. Actual login awaits that user action.

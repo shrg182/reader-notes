@@ -11,5 +11,5 @@ window.READER_CONFIG = {
   pdfLibraryEnabled: true,
   linkImportEnabled: true,
   organizeEnabled: true,
-  demoLibraryEnabled: false
+  demoLibraryEnabled: true
 };
