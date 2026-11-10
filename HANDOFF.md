@@ -681,3 +681,19 @@ job succeeded and live organizer asset matches. In the live account, renamed the
 requested article to 驹支不屈于晋 and placed it immediately after 吕相绝秦.
 Full collection view and production reload confirm the adjacent order and title;
 no body/notes edits were made.
+
+### Home reset and dismissible menus — 2026-11-10
+
+Clicking the Reader Notes brand returns to Library, saves the current reader,
+clears search/category/collection/Trash restrictions, closes lightweight menus,
+resets hierarchy expansion, hides the transient move Undo banner and scrolls up.
+Ordinary Back retains filters. PDF/mixed workspace state is flushed before closing
+so returning via the logo preserves companion state and reading position.
+
+Filters, More, tool settings and edition menus dismiss on outside clicks or Esc;
+opening another closes the previous popup. Dismissal retains filter selections.
+Editing/import dialogs are not included, so outside clicks keep unsaved input.
+No account/data/schema changes; unrelated AI cost proposal is untracked and untouched.
+Organizer browser checks pass for retained filters on outside dismissal, mutual
+menu closing, Esc, logo restriction reset and unsaved modal input retention.
+The existing article/account/auth/migration regression suite also passes.

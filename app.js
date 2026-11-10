@@ -286,8 +286,19 @@ for(const id of ['title','language','content','notes'])$(id).oninput=()=>{
 };
 $('save').onclick=()=>run(sync);
 $('sync-library').onclick=()=>run(async()=>{if(!cloud.session){notify('Sign in to synchronize. Local articles remain on this device.');return;}await sync();});
-async function returnToLibrary(){if(!tools.confirmLeave())return false;await saveDraft();rich.close();tools.navigateAway();active=null;closePdf();$('workspace-view').hidden=true;$('library-view').hidden=false;render();return true;}
+async function returnToLibrary(){if(!tools.confirmLeave())return false;await pdfLibrary.flush();await saveDraft();pdfLibrary.close();rich.close();tools.navigateAway();active=null;closePdf();$('workspace-view').hidden=true;$('library-view').hidden=false;render();return true;}
 $('back').onclick=()=>run(returnToLibrary);
+// Only lightweight menus dismiss on outside click; editing dialogs keep their input.
+const popupSelector='#library-filters,.library-tools-menu,.header-tool-settings,.edition-menu';
+function closePopups(inside=null){for(const popup of document.querySelectorAll(popupSelector))if(popup.open&&(!inside||!popup.contains(inside)))popup.open=false;}
+document.addEventListener('click',event=>closePopups(event.target));
+document.addEventListener('toggle',event=>{if(event.target.matches?.(popupSelector)&&event.target.open)closePopups(event.target);},true);
+document.addEventListener('keydown',event=>{if(event.key!=='Escape')return;const open=[...document.querySelectorAll(popupSelector)].filter(p=>p.open);if(!open.length)return;const focused=open.find(p=>p.contains(document.activeElement));closePopups();focused?.querySelector('summary')?.focus();event.preventDefault();event.stopPropagation();});
+document.querySelector('.brand').onclick=event=>{
+ if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;
+ event.preventDefault();run(async()=>{if(!await returnToLibrary())return;$('search').value='';$('library-category').value='';$('library-collection').value='';$('show-trash').checked=false;libraryExpansion.clear();closePopups();organizer.undoNode.hidden=true;linkImports.showSource(null);render();if(location.hash!=='#library')location.hash='library';window.scrollTo({top:0,behavior:'instant'});});
+};
+
 $('import-text').onclick=()=>$('text-file').click();
 $('text-file').onchange=()=>run(async()=>{
   const file=$('text-file').files[0];if(!file)return;

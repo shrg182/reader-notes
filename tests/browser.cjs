@@ -103,7 +103,7 @@ let browser;
   await page.locator('#delete-book').click();
   await page.locator('#library-filters').evaluate(d=>d.open=true);await page.locator('#show-trash').check();
   await page.getByRole('button',{name:'Restore article',exact:true}).click();
-  await page.locator('#show-trash').uncheck();await page.locator('#library-filters').evaluate(d=>d.open=false);
+  await page.locator('#library-filters>summary').click();await page.locator('#show-trash').uncheck();await page.locator('#library-filters').evaluate(d=>d.open=false);
   assert.equal(await page.locator('.article-title').count(),1);
   const restoreContext=await browser.newContext();const restorePage=await restoreContext.newPage();
   restoreContext.setDefaultTimeout(15000);
